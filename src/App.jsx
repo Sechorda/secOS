@@ -26,7 +26,7 @@ export default function App() {
         />
         
         <div className="version">
-          Latest Release: v1.0.0
+          Latest Release: v1.0.0 beta
         </div>
 
         <div className="downloads-container">
@@ -42,7 +42,7 @@ export default function App() {
           />
         </div>
 
-        <a href="https://github.com" className="github-link">
+        <a href="https://github.com/Sechorda/secOS" className="github-link">
           <img 
             src="images/GitHub.png" 
             alt="GitHub" 
