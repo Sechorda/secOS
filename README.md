@@ -20,7 +20,7 @@
 ---
 # RECON
 
-### This OS includes a `recon.py` that chains together popular and commonly used discovery tools for Recon:
+### This OS includes a `recon.py` that chains together popular discovery tools for Recon:
 - [Knockpy](https://github.com/guelfoweb/knock)
 - [Amass](https://github.com/owasp-amass/amass)
 - [Gospider](https://github.com/jaeles-project/gospider)
@@ -31,6 +31,8 @@
 - [Arjun](https://github.com/s0md3v/Arjun)
 - [Corsy](https://github.com/s0md3v/Corsy)
 - [JSluice](https://github.com/BishopFox/jsluice)
+
+This data is saved to an obsidian vault in organized folders for review.
 
 (`-aws` option allows for proxying brute-force requests through AWS gateway proxy for psuedo-infinite IPs)
 
