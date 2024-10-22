@@ -12,7 +12,7 @@
   </p>
   <p>
     <a href="https://github.com/Sechorda/secOS/blob/gh-pages/LICENSE">
-      <img alt="License" src="https://img.shields.io/github/license/sechorda/secOS.svg">
+  <img alt="License" src="https://img.shields.io/github/license/Sechorda/secOS">
     </a>
   </p>
 </div>
