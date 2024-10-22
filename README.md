@@ -18,8 +18,9 @@
 </div>
 
 ---
+# RECON
 
-### This OS comes with pre-built scripts that chains together popular and commonly used discovery tools for Recon:
+### This OS includes a recon.py that chains together popular and commonly used discovery tools for Recon:
 - [Knockpy](https://github.com/guelfoweb/knock)
 - [Amass](https://github.com/owasp-amass/amass)
 - [Gospider](https://github.com/jaeles-project/gospider)
@@ -34,3 +35,16 @@
 (`-aws` option allows for proxying brute-force requests through AWS gateway proxy for psuedo-infinite IPs)
 
 (see https://aws.amazon.com/security/penetration-testing/ to understand AWS TOS policy)
+
+# INFRASTRUCTURE
+
+### This OS includes infra.py - a python script for managing cloud instances and their DNS records for quick infrastructure
+
+(Supports: AWS EC2, AWS Route53)
+(Coming soon: Cloudflare DNS)
+
+- List EC2 instances
+- Start/Stop EC2 instances
+- Update DNS records pointing to new instances
+- (Coming soon: secos-serv.iso/.ova/.ami - A server/C2 variant with server side tools and scripts to host using infra.py)
+
