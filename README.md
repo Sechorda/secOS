@@ -11,7 +11,7 @@
     <strong>A Linux distro that focuses on BugBounty and penetration testing tools</strong>
   </p>
   <p>
-    <a href="https://github.com/YourUsername/secOS/blob/main/LICENSE">
+    <a href="https://github.com/Sechorda/secOS/blob/gh-pages/LICENSE">
       <img alt="License" src="https://img.shields.io/github/license/YourUsername/secOS.svg">
     </a>
   </p>
