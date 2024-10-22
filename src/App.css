@@ -1,42 +1,153 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: #000;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 800px;
+  width: 100%;
+  gap: 1.5rem;
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  width: 350px;
+  height: 350px;
+  object-fit: contain;
+  max-width: 85vw;
+  max-height: 35vh;
+  margin-bottom: 0.5rem;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.version {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.25rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  color: #a0aec0;
+  margin-bottom: 0.5rem;
+}
+
+.downloads-container {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  width: 100%;
+  max-width: 700px;
+  margin: 0.5rem 0;
+}
+
+.download-card {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+  width: 280px;
+  transition: all 0.3s ease;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.download-card:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.download-card h2 {
+  font-size: 1.375rem;
+  font-weight: 500;
+}
+
+.download-card .size {
+  color: #a0aec0;
+  font-size: 0.9375rem;
+}
+
+.download-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6366f1;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-size: 0.9375rem;
+}
+
+.download-link:hover {
+  color: #818cf8;
+}
+
+.github-link {
+  transition: opacity 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.github-link:hover {
+  opacity: 0.8;
+}
+
+.github-logo {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .downloads-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
   }
-  to {
-    transform: rotate(360deg);
+
+  .download-card {
+    width: 100%;
+    max-width: 280px;
+    padding: 1.5rem;
   }
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .logo {
+    width: 250px;
+    height: 250px;
   }
-}
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  .content-wrapper {
+    gap: 1rem;
+  }
 }
