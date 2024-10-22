@@ -20,7 +20,7 @@
 ---
 # RECON
 
-### This OS includes a recon.py that chains together popular and commonly used discovery tools for Recon:
+### This OS includes a `recon.py` that chains together popular and commonly used discovery tools for Recon:
 - [Knockpy](https://github.com/guelfoweb/knock)
 - [Amass](https://github.com/owasp-amass/amass)
 - [Gospider](https://github.com/jaeles-project/gospider)
@@ -38,7 +38,7 @@
 
 # INFRASTRUCTURE
 
-### This OS includes infra.py - a python script for managing cloud instances and their DNS records for quick infrastructure
+### This OS includes `infra.py` - a python script for managing cloud instances and their DNS records for quick infrastructure
 
 (Supports: AWS EC2, AWS Route53)
 (Coming soon: Cloudflare DNS)
