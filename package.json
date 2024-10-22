@@ -1,9 +1,9 @@
 {
-  "name": "secos-download",
+  "name": "secos",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://Sechorda.github.io/secOS-Download",
+  "homepage": "https://Sechorda.github.io/secOS",
   "scripts": {
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
