@@ -61,6 +61,7 @@ _Coming soon_:<br>
 # BROWSER/PROXY
 ### Firefox + Caido
 Extensions:<br>
+<br>
 [domloggerpp](https://addons.mozilla.org/en-US/firefox/addon/domlogger/)<br>
 [pwnfox](https://addons.mozilla.org/en-US/firefox/addon/pwnfox/)<br>
 [wappalyzer](https://addons.mozilla.org/en-US/firefox/addon/wappalyzer/)
