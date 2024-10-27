@@ -19,6 +19,8 @@
 <div align="center">
 
 # Summary
+[wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
+
 secOS is a minimalist and custom Linux distribution designed for security professionals. It comes pre-configured with a suite of reconnaissance and infrastructure management tools with a goal to keep configurations simple.
 
 ---
