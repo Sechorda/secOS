@@ -29,8 +29,7 @@ Features:<br>
 **Chains tools** into a pipeline for mapping attack surface<br>
 **Presents data** in an easy to review manner within an obsidian vault<br>
 
-[Knockpy](https://github.com/guelfoweb/knock)<br>
-[Amass](https://github.com/owasp-amass/amass)<br>
+[BBOT](https://github.com/blacklanternsecurity/bbot)<br>
 [Gospider](https://github.com/jaeles-project/gospider)<br>
 [DNSReaper](https://github.com/punk-security/dnsreaper)<br>
 [Wafw00f](https://github.com/EnableSecurity/wafw00f)<br>
