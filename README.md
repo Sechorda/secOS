@@ -50,9 +50,7 @@ Features:<br>
 **List** EC2 instances<br>
 **Start/Stop** EC2 instances<br>
 <br>
-_Coming soon_:<br>
-+secos-serv.iso - A server/C2 variant with server side tools and scripts to host using infra.py<br>
-+Cloudflare DNS support<br>
+
 
 ---
 
