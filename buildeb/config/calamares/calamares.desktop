@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install secOS
+GenericName=System Installer
+Comment=System Installer
+Exec=sudo calamares
+Icon=calamares
+Terminal=false
+StartupNotify=true
+Categories=System;

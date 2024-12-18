@@ -1,0 +1,317 @@
+[ 
+  { 
+    "name": "base64", 
+    "value": "(eyJ|YTo|Tzo|PD[89]|rO0)[%a-zA-Z0-9+/]+={0,2}", 
+    "severity": "low" 
+  }, 
+  {
+    "name": "genericSecret",
+    "key": "\\b(?:[A-Z_]{2,}|[a-z0-9_]+_[a-z0-9_]+)(secret|private|key)\\b",
+    "value": "[%a-zA-Z0-9+/]{16,}"
+  },
+  {
+    "name": "firebaseConfig",
+    "severity": "high",
+    "object": [
+      {"key": "apiKey", "value": "^AIza.+"},
+      {"key": "authDomain"},
+      {"key": "projectId"},
+      {"key": "storageBucket"}
+    ]
+  },
+  {
+    "name": "AWS Access Key",
+    "key": "(AWS_ACCESS_KEY_ID|aws_access_key_id)",
+    "value": "AKIA[0-9A-Z]{16}"
+  },
+  {
+    "name": "AWS Secret Key",
+    "key": "(AWS_SECRET_ACCESS_KEY|aws_secret_access_key)",
+    "value": "[0-9a-zA-Z/+]{40}"
+  },
+  {
+    "name": "GitHub Personal Access Token",
+    "key": "(github_token|GITHUB_TOKEN)",
+    "value": "ghp_[0-9a-zA-Z]{36}"
+  },
+  {
+    "name": "Google API Key",
+    "key": "(google_api_key|GOOGLE_API_KEY)",
+    "value": "AIza[0-9A-Za-z_-]{35}"
+  },
+  {
+    "name": "Slack Webhook URL",
+    "key": "(slack_webhook|SLACK_WEBHOOK)",
+    "value": "https://hooks\\.slack\\.com/services/T[0-9A-Z]{8}/B[0-9A-Z]{8}/[0-9A-Za-z]{24}"
+  },
+  {
+    "name": "Stripe API Key",
+    "key": "(stripe_api_key|STRIPE_API_KEY)",
+    "value": "sk_live_[0-9a-zA-Z]{24}"
+  },
+  {
+    "name": "Twilio API Key",
+    "key": "(twilio_api_key|TWILIO_API_KEY)",
+    "value": "SK[0-9a-fA-F]{32}"
+  },
+  {
+    "name": "SendGrid API Key",
+    "key": "(sendgrid_api_key|SENDGRID_API_KEY)",
+    "value": "SG\\.[0-9a-zA-Z_-]{22}\\.[0-9a-zA-Z_-]{43}"
+  },
+  {
+    "name": "MailChimp API Key",
+    "key": "(mailchimp_api_key|MAILCHIMP_API_KEY)",
+    "value": "[0-9a-f]{32}-us[0-9]{1,2}"
+  },
+  {
+    "name": "PayPal Client ID",
+    "key": "(paypal_client_id|PAYPAL_CLIENT_ID)",
+    "value": "AU[0-9a-zA-Z_-]{32}"
+  },
+  {
+    "name": "Square Access Token",
+    "key": "(square_access_token|SQUARE_ACCESS_TOKEN)",
+    "value": "sqOatp-[0-9A-Za-z_-]{22}"
+  },
+  {
+    "name": "SSH Private Key",
+    "key": "(ssh_key|id_rsa)",
+    "value": "-----BEGIN RSA PRIVATE KEY-----[a-zA-Z0-9+/=\\s]+-----END RSA PRIVATE KEY-----"
+  },
+  {
+    "name": "JSON Web Token (JWT)",
+    "key": "(jwt_token|JWT_TOKEN)",
+    "value": "eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+"
+  },
+  {
+    "name": "Heroku API Key",
+    "key": "(heroku_api_key|HEROKU_API_KEY)",
+    "value": "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+  },
+  {
+    "name": "Cloudinary API Secret",
+    "key": "(cloudinary_api_secret|CLOUDINARY_API_SECRET)",
+    "value": "[0-9a-zA-Z_-]{32}"
+  },
+  {
+    "name": "Pusher App Secret",
+    "key": "(pusher_app_secret|PUSHER_APP_SECRET)",
+    "value": "[0-9a-f]{32}"
+  },
+  {
+    "name": "Shopify Shared Secret",
+    "key": "(shopify_shared_secret|SHOPIFY_SHARED_SECRET)",
+    "value": "shpss_[0-9a-fA-F]{32}"
+  },
+  {
+    "name": "Twitch Client Secret",
+    "key": "(twitch_client_secret|TWITCH_CLIENT_SECRET)",
+    "value": "[0-9a-zA-Z]{30}"
+  },
+  {
+    "name": "Algolia API Key",
+    "key": "(algolia_api_key|ALGOLIA_API_KEY)",
+    "value": "[0-9a-zA-Z]{32}"
+  },
+  {
+    "name": "Mapbox Access Token",
+    "key": "(mapbox_access_token|MAPBOX_ACCESS_TOKEN)",
+    "value": "pk\\.[0-9a-zA-Z]+\\.[0-9a-zA-Z]+"
+  },
+  {
+    "name": "Zendesk Access Token",
+    "key": "(zendesk_access_token|ZENDESK_ACCESS_TOKEN)",
+    "value": "[0-9a-fA-F]{40}"
+  },
+  {
+    "name": "Box Developer Token",
+    "key": "(box_developer_token|BOX_DEVELOPER_TOKEN)",
+    "value": "[0-9a-zA-Z]{32}"
+  },
+  {
+    "name": "DigitalOcean Personal Access Token",
+    "key": "(digitalocean_token|DIGITALOCEAN_TOKEN)",
+    "value": "dop_v1_[0-9a-f]{64}"
+  },
+  {
+    "name": "HubSpot API Key",
+    "key": "(hubspot_api_key|HUBSPOT_API_KEY)",
+    "value": "sk[0-9a-f]{32}"
+  },
+  {
+    "name": "New Relic API Key",
+    "key": "(new_relic_api_key|NEW_RELIC_API_KEY)",
+    "value": "NRAK-[0-9A-Z]{27}"
+  },
+  {
+    "name": "PagerDuty API Key",
+    "key": "(pagerduty_api_key|PAGERDUTY_API_KEY)",
+    "value": "[0-9a-zA-Z]{32}"
+  },
+  {
+    "name": "Travis CI Access Token",
+    "key": "(travis_ci_token|TRAVIS_CI_TOKEN)",
+    "value": "[0-9a-zA-Z]{20}"
+  },
+  {
+    "name": "Trello API Key",
+    "key": "(trello_api_key|TRELLO_API_KEY)",
+    "value": "[0-9a-f]{32}"
+  },
+  {
+    "name": "Braintree Access Token",
+    "key": "(braintree_access_token|BRAINTREE_ACCESS_TOKEN)",
+    "value": "access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}"
+  },
+  {
+    "name": "Contentful Access Token",
+    "key": "(contentful_access_token|CONTENTFUL_ACCESS_TOKEN)",
+    "value": "CFPAT-[0-9a-zA-Z_-]{43}"
+  },
+  {
+    "name": "Drift Access Token",
+    "key": "(drift_access_token|DRIFT_ACCESS_TOKEN)",
+    "value": "driftapi-[0-9a-zA-Z]{64}"
+  },
+  {
+    "name": "Dropbox Access Token",
+    "key": "(dropbox_access_token|DROPBOX_ACCESS_TOKEN)",
+    "value": "sl\\.[0-9a-zA-Z-_]{135}"
+  },
+  {
+    "name": "HubSpot Access Token",
+    "key": "(hubspot_access_token|HUBSPOT_ACCESS_TOKEN)",
+    "value": "CJT[0-9a-zA-Z-_]{188}"
+  },
+  {
+    "name": "Intercom Access Token",
+    "key": "(intercom_access_token|INTERCOM_ACCESS_TOKEN)",
+    "value": "[0-9a-f]{64}"
+  },
+  {
+    "name": "Linear API Key",
+    "key": "(linear_api_key|LINEAR_API_KEY)",
+    "value": "lin_api_[0-9a-zA-Z]{40}"
+  },
+  {
+    "name": "Mixpanel API Secret",
+    "key": "(mixpanel_api_secret|MIXPANEL_API_SECRET)",
+    "value": "[0-9a-f]{32}"
+  },
+  {
+    "name": "Monday API Token",
+    "key": "(monday_api_token|MONDAY_API_TOKEN)",
+    "value": "eyJhbGciOiJIUzI1NiJ9\\.[0-9a-zA-Z-_]+\\.[0-9a-zA-Z-_]+"
+  },
+  {
+    "name": "Pipedrive API Token",
+    "key": "(pipedrive_api_token|PIPEDRIVE_API_TOKEN)",
+    "value": "[0-9a-f]{40}"
+  },
+  {
+    "name": "Postman API Key",
+    "key": "(postman_api_key|POSTMAN_API_KEY)",
+    "value": "PMAK-[0-9a-f]{24}-[0-9a-f]{34}"
+  },
+  {
+    "name": "ProdPad API Token",
+    "key": "(prodpad_api_token|PRODPAD_API_TOKEN)",
+    "value": "sk_[0-9a-zA-Z]{32}"
+  },
+  {
+    "name": "Rollbar Access Token",
+    "key": "(rollbar_access_token|ROLLBAR_ACCESS_TOKEN)",
+    "value": "[0-9a-f]{32}"
+  },
+  {
+    "name": "Segment API Key",
+    "key": "(segment_api_key|SEGMENT_API_KEY)",
+    "value": "sg_[0-9a-zA-Z]{24}"
+  },
+  {
+    "name": "SendGrid API Key",
+    "key": "(sendgrid_api_key|SENDGRID_API_KEY)",
+    "value": "SG\\.[0-9a-zA-Z_-]{22}\\.[0-9a-zA-Z_-]{43}"
+  },
+  {
+    "name": "Eval Usage",
+    "value": "\\beval\\s*\\("
+  },
+  {
+    "name": "Insecure Cookie Usage",
+    "value": "document\\.cookie\\s*=|\\bcookie\\s*=\\s*['\"][^;]*;?\\s*(?!httpOnly|secure)"
+  },
+  {
+    "name": "Command Injection",
+    "value": "\\b(exec|execSync|spawn|spawnSync)\\s*\\("
+  },
+  {
+    "name": "Unsafe DOM Manipulation",
+    "value": "\\.(innerHTML|outerHTML|insertAdjacentHTML)\\s*="
+  },
+  {
+    "name": "Insecure WebSocket Usage",
+    "value": "new\\s+WebSocket\\s*\\(['\"]ws://"
+  },
+  {
+    "name": "Indirect Eval Usage",
+    "value": "\\b(setTimeout|setInterval|Function)\\s*\\(['\"][^'\"]*['\"]\\s*,?"
+  },
+  {
+    "name": "Dynamic Property Access",
+    "value": "\\[\\s*['\"]\\s*\\+|\\[\\s*`.*\\${?.*}?.*`\\s*\\]"
+  },
+  {
+    "name": "Weak Randomness",
+    "value": "Math\\.random\\s*\\("
+  },
+  {
+    "name": "Insufficient Input Sanitization",
+    "value": "\\.innerHTML\\s*=\\s*([^;]+)(?!\\s*\\.replace\\s*\\(|\\s*DOMPurify\\.sanitize\\s*\\()"
+  },
+  {
+    "name": "Prototype Pollution",
+    "value": "Object\\.assign\\s*\\(|\\.\\.\\."
+  },
+  {
+    "name": "Insecure Deserialization",
+    "value": "JSON\\.parse\\s*\\((?![^)]*DOMPurify\\.sanitize)"
+  },
+  {
+    "name": "Potential Information Leak",
+    "value": "console\\.(log|error|info|warn)\\s*\\("
+  },
+  {
+    "name": "Insecure CORS Configuration",
+    "value": "\\.setHeader\\s*\\(['\"]Access-Control-Allow-Origin['\"]\\s*,\\s*['\"][^*]['\"]\\)"
+  },
+  {
+    "name": "Potential XSS in Template Literals",
+    "value": "`[^`]*\\${?.*}?.*`"
+  },
+  {
+    "name": "Insufficient CSRF Protection",
+    "value": "\\bfetch\\s*\\([^,]+,\\s*{[^}]*method:\\s*['\"](?:POST|PUT|DELETE)['\"][^}]*}\\)"
+  },
+  {
+    "name": "Potential Regex DoS",
+    "value": "\\bnew RegExp\\s*\\(['\"][^*+?]+([*+?]\\s*{\\s*\\d+\\s*,?\\s*\\}|[*+?]\\s*[*+?])['\"]"
+  },
+  {
+    "name": "Insecure Redirects",
+    "value": "\\.(href|location)\\s*=\\s*(?!(['\"]https?:\\/\\/|['\"]\\/))"
+  },
+  {
+    "name": "Use of Deprecated Crypto",
+    "value": "\\bcrypto\\.createCipher\\s*\\("
+  },
+  {
+    "name": "Potential Prototype Pollution",
+    "value": "\\[\\s*['\"]__proto__['\"]\\s*\\]\\s*="
+  },
+  {
+    "name": "Insufficient HSTS Usage",
+    "value": "\\.setHeader\\s*\\(['\"]Strict-Transport-Security['\"]\\s*,\\s*['\"][^;]+max-age=(?:0|[1-9]\\d{0,5})['\"]\\)"
+  }
+]

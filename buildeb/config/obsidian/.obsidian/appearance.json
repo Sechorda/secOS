@@ -1,0 +1,9 @@
+{
+  "theme": "obsidian",
+  "enabledCssSnippets": [
+    "callouts",
+    "column",
+    "tables"
+  ],
+  "showViewHeader": false
+}

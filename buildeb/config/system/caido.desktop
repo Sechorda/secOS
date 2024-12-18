@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Caido
+GenericName=Web Application Security Tool
+Comment=Start Caido web application security tool
+Exec=/usr/local/bin/caido
+Terminal=false
+Categories=Development;Security;

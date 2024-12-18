@@ -1,0 +1,13 @@
+table th {
+    text-align: center;
+}
+
+
+/* Center entire tables */
+table, 
+.table-wrapper {
+    margin-inline: auto;
+}
+.th {
+    text-align: center;
+}

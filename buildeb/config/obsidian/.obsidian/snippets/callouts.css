@@ -1,0 +1,158 @@
+/* General Callout Styles */
+.callout {
+    background-color: #000000;
+    border: 1px solid #333333;
+    border-radius: 10px;
+    padding: 0;
+    margin-bottom: 20px;
+    color: #ffffff;
+    overflow: hidden;
+}
+
+.callout-title {
+    font-weight: bold;
+    font-size: 0.95em;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.callout-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.callout-title-inner {
+    flex-grow: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.callout-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Specific styles for different callout types */
+.callout[data-callout="note"] .callout-title {
+    color: #007bff;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 123, 255, 0.3));
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.2);
+}
+
+.callout[data-callout="tip"] .callout-title {
+    color: #28a745;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.3));
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+}
+
+.callout[data-callout="warning"] .callout-title {
+    color: #ffc107;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.3));
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.2);
+}
+
+.callout[data-callout="info"] .callout-title {
+    color: #17a2b8;
+    background: linear-gradient(135deg, rgba(23, 162, 184, 0.1), rgba(23, 162, 184, 0.3));
+    box-shadow: 0 0 10px rgba(23, 162, 184, 0.2);
+}
+
+/* Multi-column layout */
+.callout[data-callout="multi-column"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin-top: 10px; /* Add a small margin to separate from the title */
+}
+
+.callout[data-callout="multi-column"] > .callout {
+    flex: 1 1 calc(33.333% - 20px);
+    min-width: 200px;
+    margin-bottom: 0; /* Remove bottom margin for multi-column callouts */
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 768px) {
+    .callout[data-callout="multi-column"] > .callout {
+        flex: 1 1 calc(50% - 20px);
+    }
+}
+
+@media (max-width: 480px) {
+    .callout[data-callout="multi-column"] > .callout {
+        flex: 1 1 100%;
+    }
+}
+
+/* Ensure all callouts outside multi-column are full width and styled */
+.markdown-preview-view > div > .callout:not([data-callout="multi-column"]),
+.markdown-preview-view > .callout:not([data-callout="multi-column"]) {
+    width: 100%;
+}
+
+/* Reset some styles for multi-column container to prevent inheritance */
+.callout[data-callout="multi-column"] > .callout-title,
+.callout[data-callout="multi-column"] > .callout-content {
+    display: none;
+}
+
+/* Styles for normal callouts underneath multi-column layout */
+.callout[data-callout="multi-column"] + .callout:not([data-callout="multi-column"]) {
+    clear: both;
+    width: 100%;
+}
+
+/* Custom title styling */
+.custom-title {
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+    color: #007bff;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 123, 255, 0.3));
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.2);
+    display: block;
+    width: 100%;
+}
+
+/* Adjust the spacing between title and content */
+.markdown-preview-view h1:first-child {
+    margin-bottom: 10px;
+}
+
+/* New horizontal line separator */
+.markdown-preview-view h1:first-child::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 1px;
+    background-color: #007bff;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+/* Adjust spacing for callouts after the title */
+.markdown-preview-view h1:first-child + .callout,
+.markdown-preview-view h1:first-child + .callout[data-callout="multi-column"] {
+    margin-top: 0;
+}

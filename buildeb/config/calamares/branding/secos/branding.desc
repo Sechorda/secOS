@@ -1,0 +1,37 @@
+---
+componentName:   secos
+welcomeStyleCalamares: false
+welcomeExpandingLogo: false
+windowExpanding: normal
+windowSize: 800px,520px
+windowPlacement: center
+
+strings:
+    productName:         secOS
+    shortProductName:    secOS
+    version:             1
+    shortVersion:        1
+    versionedName:       secOS
+    shortVersionedName:  secOS
+    bootloaderEntryName: secOS
+    productUrl:          https://sec-os.com
+    supportUrl:          https://sec-os.com
+    knownIssuesUrl:      https://sec-os.com
+    releaseNotesUrl:     https://sec-os.com
+    donateUrl:           https://sec-os.com
+
+images:
+    productLogo:         "transparent_logo.png"
+    productIcon:         "transparent_logo.png"
+    productWelcome:      "secos.png"
+    # productWallpaper:  "secos.png"
+
+slideshow:               "show.qml"
+
+style:
+   sidebarBackground:    "#2c3133"
+   sidebarText:          "#FFFFFF"
+   sidebarTextSelect:    "#4d7079"
+   sidebarTextSelect:    "#292F34"
+
+slideshowAPI: 2

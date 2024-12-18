@@ -1,0 +1,50 @@
+{
+  "policies": {
+    "DisableFirefoxStudies": true,
+    "DisableTelemetry": true,
+    "DontCheckDefaultBrowser": true,
+    "OverrideFirstRunPage": "",
+    "DisableProfileImport": true,
+    "InstallAddonsPermission": {
+      "Default": true
+    },
+    "Extensions": {
+      "Install": [
+        "/usr/lib/firefox-esr/distribution/extensions/pwnfox-1.0.4.xpi",
+        "/usr/lib/firefox-esr/distribution/extensions/domloggerpp@dblohm7.ca.xpi",
+        "/usr/lib/firefox-esr/distribution/extensions/wappalyzer-6.10.74.xpi"
+      ]
+    },
+    "ExtensionSettings": {
+      "pwnfox@intigriti": {
+        "installation_mode": "normal_installed",
+        "default_area": "navbar"
+      }
+    },
+    "Homepage": {
+      "URL": "about:blank",
+      "Locked": true
+    },
+    "NewTabPage": false,
+    "Preferences": {
+      "browser.newtabpage.enabled": false,
+      "browser.startup.homepage": "about:blank"
+    },
+    "NoDefaultBookmarks": true,
+    "DisplayBookmarksToolbar": true,
+    "Bookmarks": [
+      {
+        "Title": "Caido",
+        "URL": "http://127.0.0.1:8080"
+      },
+      {
+        "Title": "Interactsh-web",
+        "URL": "https://app.interactsh.com/#/"
+      },
+      {
+        "Title": "CSP-bypass",
+        "URL": "https://cspbypass.com/"
+      }
+    ]
+  }
+}

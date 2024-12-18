@@ -1,0 +1,31 @@
+scope:
+  domains: # domain names to be in scope
+  
+  ips: # IP addresses to be in scope, multiple methods of inserting ip addresses can be used
+
+  asns: # ASNs that are to be in scope
+
+  cidrs: # CIDR ranges that are to be in scope
+
+  ports: # ports to be used when actively reaching a service
+    - 80
+    - 443
+  blacklist: # subdomains to be blacklisted
+    -
+options:
+  resolvers: 
+    - 1.1.1.1
+    - 8.8.8.8
+    - 8.8.4.4
+    - 9.9.9.9
+  datasources: "./datasources.yaml" # the file path that will point to the data source configuration
+  wordlist: # global wordlist(s) to use
+    - "../wordlists/subdomains.txt"
+  bruteforce: # specific option to use when brute forcing is needed
+    enabled: false
+    wordlists: # wordlist(s) to use that are specific to brute forcing
+      - "../wordlists/subdomains.txt"
+  alterations: # specific option to use when brute forcing is needed
+    enabled: false
+    wordlists: # wordlist(s) to use that are specific to alterations
+      - "../wordlists/subdomains.txt"

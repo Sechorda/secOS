@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+function initialization() {
+    source "$HOME/.config/ronema/ronema.conf" || exit
+    # Override LOCATION and X_AXIS for roblma
+    LOCATION=2  # Set to 2 for top-center
+    X_AXIS=100000  # Set to a very large number to push it as far right as possible within position 2
+    [[ -f "$HOME/.config/ronema/ronema.rasi" ]] && RASI_DIR="$HOME/.config/ronema/ronema.rasi" || exit
+}
+
+function bluetooth_status() {
+    BLUETOOTH_POWERED=$(bluetoothctl show | grep "Powered:" | awk '{print $2}')
+    if [[ "$BLUETOOTH_POWERED" == "yes" ]]; then
+        BLUETOOTH_STATE="on"
+        BLUETOOTH_SWITCH="${SELECTION_PREFIX}Bluetooth Off"
+        PAIRED_DEVICES=$(bluetoothctl paired-devices | awk '{print $3 " (" $2 ")"}')
+        SCANNED_DEVICES=$(bluetoothctl devices | awk '{print $3 " (" $2 ")"}')
+        OPTIONS="${PAIRED_DEVICES}\n${SCANNED_DEVICES}\n${SELECTION_PREFIX}Scan\n${BLUETOOTH_SWITCH}\n"
+    else
+        BLUETOOTH_STATE="off"
+        BLUETOOTH_SWITCH="${SELECTION_PREFIX}Bluetooth On"
+        OPTIONS="${BLUETOOTH_SWITCH}\n"
+    fi
+}
+
+function rofi_menu() {
+    OPTIONS="${OPTIONS}${SELECTION_PREFIX}More Options"
+    PROMPT="Bluetooth"
+    SELECTION=$(echo -e "$OPTIONS" | rofi_cmd "$OPTIONS" $WIDTH_FIX_MAIN "-a 0")
+    selection_action
+}
+
+function rofi_cmd() {
+    { [[ -n "${1}" ]] && WIDTH=$(echo -e "$1" | awk '{print length}' | sort -n | tail -1) && ((WIDTH += $2)) && ((WIDTH = WIDTH / 2)); } || { ((WIDTH = $2 / 2)); }
+    rofi -dmenu -i -location "$LOCATION" -yoffset "$Y_AXIS" -xoffset "$X_AXIS" $3 -theme "$RASI_DIR" -theme-str 'window{width: '"$WIDTH"'em;}textbox-prompt-colon{str:"'"$PROMPT"':";}'"$4"''
+}
+
+function change_bluetooth_state() {
+    bluetoothctl power "$3"
+}
+
+function scan() {
+    bluetoothctl scan on &
+    sleep 10
+    kill $!
+    bluetooth_status
+    rofi_menu
+}
+
+function connect_device() {
+    local device_name="$1"
+    local device_mac=$(echo "$device_name" | awk -F'[()]' '{print $2}')
+    bluetoothctl connect "$device_mac"
+}
+
+function disconnect_device() {
+    local device_name="$1"
+    local device_mac=$(echo "$device_name" | awk -F'[()]' '{print $2}')
+    bluetoothctl disconnect "$device_mac"
+}
+
+function more_options() {
+    OPTIONS="${SELECTION_PREFIX}Status\n${SELECTION_PREFIX}Restart Bluetooth"
+    [[ -x "$(command -v blueman-manager)" ]] && OPTIONS="${OPTIONS}\n${SELECTION_PREFIX}Open Bluetooth Manager"
+    SELECTION=$(echo -e "$OPTIONS" | rofi_cmd "$OPTIONS" "$WIDTH_FIX_STATUS" "" "mainbox {children:[listview];}")
+    selection_action
+}
+
+function bluetooth_restart() {
+    sudo systemctl restart bluetooth
+}
+
+function status() {
+    OPTIONS=""
+    BLUETOOTH_POWERED=$(bluetoothctl show | grep "Powered:" | awk '{print $2}')
+    [[ "$BLUETOOTH_POWERED" == "yes" ]] && STATUS="Bluetooth: On" || STATUS="Bluetooth: Off"
+    OPTIONS="${OPTIONS}${STATUS}\n"
+    CONNECTED_DEVICES=$(bluetoothctl info | grep "Name:" | awk '{print $2}')
+    [[ -n "$CONNECTED_DEVICES" ]] && OPTIONS="${OPTIONS}Connected devices:\n$CONNECTED_DEVICES"
+    echo -e "$OPTIONS" | rofi_cmd "$OPTIONS" $WIDTH_FIX_STATUS "" "mainbox{children:[listview];}"
+}
+
+function selection_action() {
+    case "$SELECTION" in
+        "${SELECTION_PREFIX}Scan") scan ;;
+        "${SELECTION_PREFIX}Status") status ;;
+        "${SELECTION_PREFIX}Bluetooth On") change_bluetooth_state "Bluetooth" "Enabling Bluetooth" "on";;
+        "${SELECTION_PREFIX}Bluetooth Off") change_bluetooth_state "Bluetooth" "Disabling Bluetooth" "off";;
+        "${SELECTION_PREFIX}More Options") more_options ;;
+        "${SELECTION_PREFIX}Restart Bluetooth") bluetooth_restart ;;
+        "${SELECTION_PREFIX}Open Bluetooth Manager") blueman-manager ;;
+        *)
+            if [[ -n "$SELECTION" ]]; then
+                if echo "$PAIRED_DEVICES" | grep -q "$SELECTION"; then
+                    disconnect_device "$SELECTION"
+                else
+                    connect_device "$SELECTION"
+                fi
+            fi
+            ;;
+    esac
+}
+
+function main() {
+    initialization
+    bluetooth_status
+    rofi_menu
+}
+
+main
