@@ -21,6 +21,9 @@
 
 secOS is a minimalist and custom Linux distribution designed for security professionals. It comes pre-configured with a suite of reconnaissance and infrastructure management tools with a goal to keep configurations simple.
 
+![preview](https://github.com/user-attachments/assets/578a0cf1-8d7f-4a81-ae58-3c98cf52bfc3)
+
+
 ---
 
 # RECON
