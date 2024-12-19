@@ -10,38 +10,39 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/vscode/devcontainers/universal:linux
-      options: --privileged
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup environment
+      - name: Install required packages
         run: |
-          apt-get update
-          apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+          sudo apt-get update
+          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox curl sudo
-          echo "Current date: $(date)"
-          echo "Current user: $(whoami)"
-          echo "TERM=$TERM"
+            mtools dosfstools wget unzip virtualbox curl
 
       - name: Set up build environment
         run: |
           export TERM=xterm-256color
           export DEBIAN_FRONTEND=noninteractive
-          mkdir -p /tmp/LIVE_BOOT
           chmod +x buildeb/buildeb.sh
+          # Set up user similar to Codespaces
+          sudo useradd -m -s /bin/bash Sechorda
+          sudo usermod -aG sudo Sechorda
+          echo "Sechorda ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/Sechorda
 
       - name: Run build script
         env:
           TERM: xterm-256color
           DEBIAN_FRONTEND: noninteractive
-        run: ./buildeb/buildeb.sh
+          USER: Sechorda
+        run: |
+          sudo -E -u Sechorda ./buildeb/buildeb.sh
 
       - name: Install rclone
         run: |
-          curl https://rclone.org/install.sh | bash
+          curl https://rclone.org/install.sh | sudo bash
           
       - name: Configure rclone
         run: |
@@ -76,13 +77,3 @@ jobs:
           else
             echo "secOS.ova not found"
           fi
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-logs
-          path: |
-            /tmp/LIVE_BOOT/chroot/*.log
-            /var/log/apt/*.log
-          if-no-files-found: ignore
