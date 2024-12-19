@@ -11,14 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      
+
+      - name: Set execute permissions
+        run: |
+          chmod +x buildeb/buildeb.sh
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox
-      
+
       - name: Build secOS
         run: |
           sudo ./buildeb/buildeb.sh
