@@ -17,11 +17,21 @@
 
 # Summary
 [wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
-[source code](https://github.com/Sechorda/secOS/tree/secOS-src)<br>
 
 secOS is a minimalist and custom Linux distribution designed for security professionals. It comes pre-configured with a suite of reconnaissance and infrastructure management tools with a goal to keep configurations simple.
 
 ---
+
+# Build secOS
+### `buildeb.sh`
+
+Build secOS yourself with the buildeb.sh bash script
+  <br>
+  Tested on debian12
+  </br>
+  Download prebuilt .ISO/.OVA at https://sec-os.com
+  
+![buildeb](https://github.com/Sechorda/secOS/blob/gh-pages/images/buildeb.png)
 
 # RECON
 ### `recon.py`
