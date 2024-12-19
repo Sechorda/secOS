@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
+      options: --privileged
 
     steps:
       - name: Checkout repository
@@ -18,18 +19,12 @@ jobs:
       - name: Install initial requirements
         run: |
           apt-get update
-          apt-get install -y ca-certificates curl gpg wget
+          apt-get install -y ca-certificates curl gpg wget apt-utils
 
-      - name: Install build dependencies and VirtualBox
+      - name: Install build dependencies
         run: |
-          # Add VirtualBox repository
-          wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | gpg --dearmor > /usr/share/keyrings/oracle-virtualbox-2016.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian bookworm contrib" > /etc/apt/sources.list.d/virtualbox.list
-          
-          # Update and install dependencies
           apt-get update
           apt-get install -y \
-            apt-utils \
             debootstrap \
             squashfs-tools \
             xorriso \
@@ -45,9 +40,6 @@ jobs:
             curl \
             gpg \
             linux-headers-amd64
-          
-          # Install VirtualBox
-          apt-get install -y virtualbox-7.0
 
       - name: Install rclone
         run: |
@@ -72,24 +64,35 @@ jobs:
           bucket_name = ${R2_BUCKET_NAME}
           EOF
 
+      - name: Prepare build script
+        run: |
+          cd buildeb
+          # Make backup
+          cp buildeb.sh buildeb.sh.bak
+          
+          # Process script to remove sudo and adjust paths
+          cat buildeb.sh.bak | sed \
+            -e 's/sudo //g' \
+            -e 's/sudo -E //g' \
+            -e 's/sudo -H //g' \
+            -e 's/sudo -u //g' \
+            -e 's/sudo chroot/chroot/g' \
+            -e 's/clear/printf "\\033[2J\\033[H"/' > buildeb.sh
+            
+          # Set permissions
+          chmod +x buildeb.sh
+          
+          # Print modifications for verification
+          echo "=== Checking for any remaining sudo commands ==="
+          grep -n "sudo" buildeb.sh || echo "No sudo commands found"
+          echo "==========================================="
+
       - name: Run build script
         env:
           TERM: xterm-256color
         run: |
           cd buildeb
-          chmod +x ./buildeb.sh
-          sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          # Run with full output and debugging
-          set -x  # Enable debug mode
-          bash -x ./buildeb.sh 2>&1 | tee build.log
-          # Check if build succeeded
-          if [ -f "secOS.iso" ]; then
-            echo "Build completed successfully - ISO file exists"
-          else
-            echo "Build failed - ISO file not created"
-            cat build.log
-            exit 1
-          fi
+          ./buildeb.sh
 
       - name: Upload files to R2
         run: |
@@ -97,13 +100,6 @@ jobs:
           rclone copy secOS.iso r2:${R2_BUCKET_NAME}
           rclone copy secOS.ova r2:${R2_BUCKET_NAME}
 
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-logs
-          path: buildeb/build.log
-          
       - name: Cleanup
         if: always()
         run: |
