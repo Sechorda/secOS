@@ -1,29 +1,29 @@
 name: Build and Upload secOS
 on:
   workflow_dispatch:
-
 env:
   DEBIAN_FRONTEND: noninteractive
   DOCKER_BUILDKIT: 1
-
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
       options: --privileged --init
-
     steps:
       - name: System setup
         run: |
+          # Clear existing sources
           rm -f /etc/apt/sources.list.d/*.sources
           
+          # Setup proper sources
           cat > /etc/apt/sources.list << EOF
           deb http://deb.debian.org/debian bookworm main contrib non-free-firmware
           deb http://security.debian.org/debian-security bookworm-security main contrib non-free-firmware
           deb http://deb.debian.org/debian bookworm-updates main contrib non-free-firmware
           EOF
           
+          # Setup proper system environment
           apt-get update
           apt-get install -y \
             systemd \
@@ -33,19 +33,27 @@ jobs:
             udev \
             kmod \
             sudo
-
+          # Initialize system services
           dbus-uuidgen > /etc/machine-id
           mkdir -p /run/lock
           export container=docker
           mount proc /proc -t proc || true
-          
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           
+      - name: Verify checkout
+        run: |
+          pwd
+          ls -la
+          echo "Current directory contents:"
+          ls -R
+
       - name: Install build requirements
         run: |
+          # Update and install required packages
           apt-get update
           apt-get install -y \
             build-essential \
@@ -67,13 +75,27 @@ jobs:
             apt-utils \
             linux-headers-amd64 \
             acl \
-            locales \
-            virtualbox
-
+            locales
+          # Configure locales properly
           echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
           locale-gen
           echo "LANG=en_US.UTF-8" > /etc/default/locale
           . /etc/default/locale
+
+      - name: Prepare build script
+        run: |
+          cd buildeb
+          # Remove sudo commands from build script
+          sed -i \
+            -e 's/sudo //g' \
+            -e 's/sudo -E //g' \
+            -e 's/sudo -H //g' \
+            -e 's/sudo -u //g' \
+            -e 's/sudo chroot/chroot/g' \
+            -e 's/clear/printf "\\033[2J\\033[H"/' \
+            buildeb.sh
+          
+          chmod +x buildeb.sh
 
       - name: Run build script
         env:
@@ -82,7 +104,6 @@ jobs:
           HOME: /root
         run: |
           cd buildeb
-          chmod +x buildeb.sh
           ./buildeb.sh
 
       - name: Upload artifacts
@@ -92,6 +113,7 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
+          # Install and configure rclone
           curl https://rclone.org/install.sh | bash
           mkdir -p ~/.config/rclone
           
