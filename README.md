@@ -18,8 +18,7 @@
 # Summary
 [wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
 
-secOS is a minimalist and custom Linux distribution designed for security professionals. It comes pre-configured with a suite of reconnaissance and infrastructure management tools with a goal to keep configurations simple.
-
+secOS is a Debian-based Linux distribution for cybersecurity researchers. It combines essential penetration testing and bug bounty tools into a pre-configured metaframework, emphasizing minimalism and efficiency. The lightweight design enables security practitioners to focus on testing rather than setup and configuration.
 ---
 
 # Build secOS
