@@ -4,27 +4,49 @@ on:
 
 env:
   DEBIAN_FRONTEND: noninteractive
+  DOCKER_BUILDKIT: 1
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
-      options: --privileged
+      options: --privileged --init
 
     steps:
+      - name: System setup
+        run: |
+          # Setup proper system environment
+          apt-get update
+          apt-get install -y \
+            systemd \
+            procps \
+            init \
+            dbus \
+            udev \
+            kmod
+
+          # Initialize system services
+          dbus-uuidgen > /etc/machine-id
+          mkdir -p /run/lock
+          export container=docker
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install initial requirements
+      - name: Install build requirements
         run: |
-          apt-get update
-          apt-get install -y ca-certificates curl gpg wget apt-utils
+          # Configure proper apt sources
+          cat > /etc/apt/sources.list << EOF
+          deb http://deb.debian.org/debian bookworm main contrib non-free-firmware
+          deb http://security.debian.org/debian-security bookworm-security main contrib non-free-firmware
+          deb http://deb.debian.org/debian bookworm-updates main contrib non-free-firmware
+          EOF
 
-      - name: Install build dependencies
-        run: |
+          # Update and install required packages
           apt-get update
           apt-get install -y \
+            build-essential \
             debootstrap \
             squashfs-tools \
             xorriso \
@@ -35,24 +57,59 @@ jobs:
             grub-efi-ia32-bin \
             mtools \
             dosfstools \
+            ca-certificates \
+            curl \
             wget \
             unzip \
-            curl \
             gpg \
-            linux-headers-amd64
+            apt-utils \
+            linux-headers-amd64 \
+            acl \
+            locales
 
-      - name: Install rclone
+          # Configure locale
+          locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8
+
+      - name: Prepare build environment
         run: |
-          curl https://rclone.org/install.sh | bash
-          mkdir -p ~/.config/rclone
+          cd buildeb
+          # Create base directories with proper permissions
+          mkdir -p {LIVE_BOOT/{chroot,staging/{EFI/BOOT,boot/grub/x86_64-efi,isolinux,live}},tmp}
+          chmod -R 755 LIVE_BOOT
+          
+          # Remove sudo commands from build script
+          sed -i \
+            -e 's/sudo //g' \
+            -e 's/sudo -E //g' \
+            -e 's/sudo -H //g' \
+            -e 's/sudo -u //g' \
+            -e 's/sudo chroot/chroot/g' \
+            -e 's/clear/printf "\\033[2J\\033[H"/' \
+            buildeb.sh
+          
+          chmod +x buildeb.sh
 
-      - name: Configure rclone
+      - name: Run build script
+        env:
+          TERM: xterm-256color
+          PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          HOME: /root
+        run: |
+          cd buildeb
+          ./buildeb.sh
+
+      - name: Upload artifacts
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
+          # Install and configure rclone
+          curl https://rclone.org/install.sh | bash
+          mkdir -p ~/.config/rclone
+          
           cat > ~/.config/rclone/rclone.conf << EOF
           [r2]
           type = s3
@@ -63,45 +120,7 @@ jobs:
           acl = private
           bucket_name = ${R2_BUCKET_NAME}
           EOF
-
-      - name: Prepare build script
-        run: |
-          cd buildeb
-          # Make backup
-          cp buildeb.sh buildeb.sh.bak
           
-          # Process script to remove sudo and adjust paths
-          cat buildeb.sh.bak | sed \
-            -e 's/sudo //g' \
-            -e 's/sudo -E //g' \
-            -e 's/sudo -H //g' \
-            -e 's/sudo -u //g' \
-            -e 's/sudo chroot/chroot/g' \
-            -e 's/clear/printf "\\033[2J\\033[H"/' > buildeb.sh
-            
-          # Set permissions
-          chmod +x buildeb.sh
-          
-          # Print modifications for verification
-          echo "=== Checking for any remaining sudo commands ==="
-          grep -n "sudo" buildeb.sh || echo "No sudo commands found"
-          echo "==========================================="
-
-      - name: Run build script
-        env:
-          TERM: xterm-256color
-        run: |
           cd buildeb
-          ./buildeb.sh
-
-      - name: Upload files to R2
-        run: |
-          cd buildeb
-          rclone copy secOS.iso r2:${R2_BUCKET_NAME}
-          rclone copy secOS.ova r2:${R2_BUCKET_NAME}
-
-      - name: Cleanup
-        if: always()
-        run: |
-          cd buildeb
-          rm -f secOS.iso secOS.ova
+          rclone copy secOS.iso r2:${R2_BUCKET_NAME} || true
+          rclone copy secOS.ova r2:${R2_BUCKET_NAME} || true
