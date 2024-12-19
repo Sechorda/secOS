@@ -1,54 +1,87 @@
-name: Build secOS
+name: Test Package Installation
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  test-package-install:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Basic Setup
+      - name: Setup Basic Environment
         run: |
           apt-get update
           apt-get install -y debootstrap sudo
 
-      - name: Modify Build Script
+      - name: Bootstrap Basic Debian System
         run: |
-          # Add set -x at the start of the script and remove all redirections
-          awk '
-          # Add debug mode at the start of the script
-          NR==1 { print "set -x"; }
+          set -x
+          DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
+          LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
           
-          # Skip spinner and ascii art functions
-          /^print_ascii_art\(\)/ { skip=1; next }
-          /^display_spinner\(\)/ { skip=1; next }
-          /^}$/ { if (skip) { skip=0; next } }
+          # Create directory and bootstrap minimal system
+          mkdir -p "${LIVE_BOOT_DIR}/chroot"
+          debootstrap --arch=amd64 --variant=minbase stable \
+              "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
           
-          # Process remaining lines
-          !skip {
-            # Remove all types of redirections and spinners
-            gsub(/display_spinner \$! [0-9]+/, "")
-            gsub(/\s*&\s*$/, "")
-            gsub(/spinner_pid=.*/, "")
-            gsub(/wait.*\$spinner_pid.*/, "")
-            gsub(/ > \/dev\/null 2>&1/, "")
-            gsub(/ 2> \/dev\/null/, "")
-            gsub(/ > \/dev\/null/, "")
-            gsub(/exec 2>\/dev\/null/, "")
-            gsub(/exec [0-9]*>&[0-9]*/, "")
-            print
-          }
-          ' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
-          chmod +x buildeb/buildeb_ci.sh
+          # Setup basic directories
+          mkdir -p "${LIVE_BOOT_DIR}/chroot"/{dev,proc,sys,run}
 
-      - name: Run Build Script
-        env:
-          TERM: xterm-256color
-          DEBIAN_FRONTEND: noninteractive
+      - name: Setup Repository Sources
         run: |
-          bash -x ./buildeb/buildeb_ci.sh
+          set -x
+          # Add non-free repositories
+          chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+              "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list"
+          
+          # Show sources list
+          echo "=== Sources List ==="
+          cat "${LIVE_BOOT_DIR}/chroot/etc/apt/sources.list"
+
+      - name: Test Package Installation in Chunks
+        run: |
+          set -x
+          
+          # Test packages in smaller groups
+          PACKAGE_GROUPS=(
+            "linux-image-amd64 live-boot systemd-sysv"
+            "openssh-server firefox-esr kitty vim nmap"
+            "hashcat hydra netcat-openbsd lightdm awesome"
+            "picom rofi proxychains sudo git"
+            "golang-go python3 python3-pip pipx python3-setuptools"
+            "unzip pciutils wget tar dpkg locales tzdata"
+            "curl gpg network-manager net-tools network-manager-gnome"
+            "wpasupplicant wireless-tools dnsutils aircrack-ng"
+            "iputils-ping iproute2 firmware-linux-nonfree firmware-iwlwifi"
+            "xorg xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all"
+            "alsa-utils playerctl gobject-introspection"
+            "liblightdm-gobject-1-0 liblightdm-gobject-dev libgirepository1.0-dev"
+            "libcairo2 libcairo2-dev libxcb1-dev libx11-dev"
+            "libnss3-tools libxft-dev libxrandr-dev libxpm-dev"
+            "uthash-dev os-prober kpackagetool5 libkf5c"
+          )
+          
+          for group in "${PACKAGE_GROUPS[@]}"; do
+            echo "=== Installing package group: $group ==="
+            if ! chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" $group"; then
+              echo "Failed to install package group: $group"
+              # Show what packages are available
+              echo "=== Available packages ==="
+              chroot "${LIVE_BOOT_DIR}/chroot" apt-cache policy $group
+              exit 1
+            fi
+          done
+
+      - name: Check Package Status
+        if: always()
+        run: |
+          echo "=== Installed Packages ==="
+          chroot "${LIVE_BOOT_DIR}/chroot" dpkg -l
+          
+          echo "=== APT Status ==="
+          cat "${LIVE_BOOT_DIR}/chroot/var/log/apt/term.log" || true
+          
+          echo "=== System Status ==="
+          df -h
+          free -m
