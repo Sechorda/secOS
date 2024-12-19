@@ -80,8 +80,17 @@ jobs:
           cd buildeb
           chmod +x ./buildeb.sh
           sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          # Run the script but only show errors
-          ./buildeb.sh 2>&1 | grep -i 'error\|fail\|fatal'
+          # Run with full output and debugging
+          set -x  # Enable debug mode
+          bash -x ./buildeb.sh 2>&1 | tee build.log
+          # Check if build succeeded
+          if [ -f "secOS.iso" ]; then
+            echo "Build completed successfully - ISO file exists"
+          else
+            echo "Build failed - ISO file not created"
+            cat build.log
+            exit 1
+          fi
 
       - name: Upload files to R2
         run: |
@@ -89,6 +98,13 @@ jobs:
           rclone copy secOS.iso r2:${R2_BUCKET_NAME}
           rclone copy secOS.ova r2:${R2_BUCKET_NAME}
 
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs
+          path: buildeb/build.log
+          
       - name: Cleanup
         if: always()
         run: |
