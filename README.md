@@ -33,6 +33,8 @@ Build secOS yourself with the buildeb.sh bash script
   
 ![buildeb](https://github.com/Sechorda/secOS/blob/gh-pages/images/buildeb.png)
 
+---
+
 # RECON
 ### `recon.py`
 Features:<br>
@@ -61,6 +63,8 @@ Features:<br>
 **List** EC2 instances<br>
 **Start/Stop** EC2 instances<br>
 <br>
+
+---
 
 # OSINT
 ### `osint.py`
