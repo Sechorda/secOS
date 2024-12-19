@@ -1,6 +1,7 @@
 name: Build SecOS
 
 on:
+  workflow_dispatch:  # Allows manual triggering
   push:
     branches: [ "main" ]
     paths:
@@ -31,16 +32,14 @@ jobs:
 
     - name: Modify build script
       run: |
-        # Create a modified version of the build script
+        # Extract commands from status tracked sections
+        sed -i 's/display_spinner $! [0-9]*//' buildeb/buildeb.sh
+        sed -i 's/) &$//' buildeb/buildeb.sh
         sed -i '/^spinner=/d' buildeb/buildeb.sh
-        sed -i '/display_spinner/d' buildeb/buildeb.sh
-        sed -i '/tput/d' buildeb/buildeb.sh
         sed -i '/print_centered_ascii_art/,/^}/d' buildeb/buildeb.sh
-        sed -i 's/&>/dev/null//' buildeb/buildeb.sh
-        sed -i 's/>/dev/null//' buildeb/buildeb.sh
-        sed -i 's/2>&1//' buildeb/buildeb.sh
-        sed -i '/update_step/d' buildeb/buildeb.sh
+        sed -i '/^update_step/d' buildeb/buildeb.sh
         sed -i '/clear/d' buildeb/buildeb.sh
+        sed -i '/tput/d' buildeb/buildeb.sh
         chmod +x buildeb/buildeb.sh
 
     - name: Install dependencies
