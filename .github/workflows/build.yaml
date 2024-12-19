@@ -30,38 +30,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y sudo
 
-    - name: Create minimal build script
+    - name: Modify build script
       run: |
         cd buildeb
-        # Extract core functions and arrays
-        grep -A1000 "CUSTOM_PROGRAMS=" buildeb.sh | grep -B1000 "^main()" > core.sh
-        # Add shebang and essential setup
-        echo '#!/usr/bin/env bash' > build_minimal.sh
-        echo 'set -e' >> build_minimal.sh
-        echo 'LIVE_BOOT_DIR="/tmp/LIVE_BOOT"' >> build_minimal.sh
-        echo 'trap "rm -rf \${LIVE_BOOT_DIR}" EXIT' >> build_minimal.sh
-        # Add core functions
-        cat core.sh >> build_minimal.sh
-        # Add simplified main function
-        cat << 'EOF' >> build_minimal.sh
-        main() {
-            if [ -d "${LIVE_BOOT_DIR}" ]; then
-                sudo rm -rf "${LIVE_BOOT_DIR}"
-            fi
-            setup_build_env
-            bootstrap_debian
-            install_kernel_and_packages
-            install_github_packages    
-            configure_system
-            create_filesystem
-            configure_boot_loaders
-            create_efi_images
-            create_uefi_boot_image
-            create_iso_and_ova
-        }
-        main
-        EOF
-        chmod +x build_minimal.sh
+        # Find the line number where main() starts
+        main_line=$(grep -n "^main()" buildeb.sh | cut -d: -f1)
+        # Delete everything after main() and replace with simplified version
+        sed -i "${main_line},\$c\\main() {\n    if [ -d \"\${LIVE_BOOT_DIR}\" ]; then\n        sudo rm -rf \"\${LIVE_BOOT_DIR}\"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}\n\nmain" buildeb.sh
 
     - name: Install dependencies
       run: |
@@ -71,4 +46,4 @@ jobs:
         mtools dosfstools wget unzip virtualbox
 
     - name: Build OS
-      run: cd buildeb && sudo ./build_minimal.sh
+      run: cd buildeb && sudo ./buildeb.sh
