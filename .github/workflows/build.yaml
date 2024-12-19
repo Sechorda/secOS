@@ -26,24 +26,27 @@ jobs:
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox tar gzip
 
-      - name: Remove spinner invocations and add debug
+      - name: Modify script for debugging
         run: |
-          # Add debug flags at start of script
+          # Add debug flags
           sed -i '2i set -x' buildeb/buildeb.sh
           
-          # Modify locale configuration to install required packages first
-          sed -i '/sudo chroot.*locale-gen/i\    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y locales' buildeb/buildeb.sh
-          
-          # Add tar installation to chroot setup
-          sed -i '/apt-get update/a\    chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y tar gzip' buildeb/buildeb.sh
-          
-          # Modify Caido installation to show errors
-          sed -i 's#tar -xzf /tmp/caido-cli.tar.gz -C /usr/local/bin >/dev/null 2>&1#echo "Extracting Caido CLI..." \&\& ls -l /tmp/caido-cli.tar.gz \&\& tar -xzvf /tmp/caido-cli.tar.gz -C /usr/local/bin#' buildeb/buildeb.sh
+          # Remove all output redirects
+          sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
           
           # Remove background process and spinner invocations
           sed -i 's/) \&$/)/g' buildeb/buildeb.sh
           sed -i 's/\&\s*$/\n/g' buildeb/buildeb.sh
           sed -i 's/display_spinner .*//' buildeb/buildeb.sh
+          
+          # Add package installation before configuration
+          sed -i '/configure_system/i\    # Install required packages\n    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get update\n    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y locales xdg-utils\n    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/usr/share/applications"\n    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/etc/sudoers.d"\n' buildeb/buildeb.sh
+          
+          # Fix locale generation
+          sed -i 's#ln -sf /usr/share/zoneinfo/#ln -sf /usr/share/zoneinfo/UTC#' buildeb/buildeb.sh
+          
+          # Replace empty timezone with UTC
+          sed -i "s#echo ''#echo 'UTC'#" buildeb/buildeb.sh
           
           # Replace main function with debug version
           sed -i '/^main() {/,/^}/c\main() {\n    set -x\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env || { echo "setup_build_env failed"; exit 1; }\n    bootstrap_debian || { echo "bootstrap_debian failed"; exit 1; }\n    install_kernel_and_packages || { echo "install_kernel_and_packages failed"; exit 1; }\n    install_github_packages || { echo "install_github_packages failed"; exit 1; }\n    configure_system || { echo "configure_system failed"; exit 1; }\n    create_filesystem || { echo "create_filesystem failed"; exit 1; }\n    configure_boot_loaders || { echo "configure_boot_loaders failed"; exit 1; }\n    create_efi_images || { echo "create_efi_images failed"; exit 1; }\n    create_uefi_boot_image || { echo "create_uefi_boot_image failed"; exit 1; }\n    create_iso_and_ova || { echo "create_iso_and_ova failed"; exit 1; }\n}' buildeb/buildeb.sh
@@ -55,20 +58,6 @@ jobs:
         run: sudo bash -x ./buildeb/buildeb.sh
         env:
           TERM: xterm-256color
-
-      - name: Upload ISO artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secOS-iso
-          path: secOS.iso
-
-      - name: Upload OVA artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secOS-ova
-          path: secOS.ova
 
       - name: Upload build logs
         if: always()
