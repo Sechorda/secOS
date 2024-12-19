@@ -44,13 +44,6 @@ jobs:
         with:
           fetch-depth: 1
           
-      - name: Verify checkout
-        run: |
-          pwd
-          ls -la
-          echo "Current directory contents:"
-          ls -R
-
       - name: Install build requirements
         run: |
           # Update and install required packages
@@ -81,6 +74,13 @@ jobs:
           locale-gen
           echo "LANG=en_US.UTF-8" > /etc/default/locale
           . /etc/default/locale
+
+      - name: Prepare directories
+        run: |
+          mkdir -p /__w/secOS/secOS/buildeb/LIVE_BOOT/chroot
+          mkdir -p /__w/secOS/secOS/buildeb/LIVE_BOOT/staging/boot/grub/x86_64-efi
+          chown -R root:root /__w/secOS/secOS/buildeb
+          chmod -R 755 /__w/secOS/secOS/buildeb
 
       - name: Prepare build script
         run: |
