@@ -26,31 +26,52 @@ jobs:
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox
 
-      - name: Remove spinner invocations
+      - name: Remove spinner invocations and add debug
         run: |
-          # Remove background process and spinner invocations while preserving functions
+          # Add debug flags at start of script
+          sed -i '2i set -x' buildeb/buildeb.sh
+          
+          # Remove background process and spinner invocations
           sed -i 's/) \&$/)/g' buildeb/buildeb.sh
           sed -i 's/\&\s*$/\n/g' buildeb/buildeb.sh
           sed -i 's/display_spinner .*//' buildeb/buildeb.sh
-          # Replace main function
-          sed -i '/^main() {/,/^}/c\main() {\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}' buildeb/buildeb.sh
+          
+          # Replace main function with debug version
+          sed -i '/^main() {/,/^}/c\main() {\n    set -x\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env || { echo "setup_build_env failed"; exit 1; }\n    bootstrap_debian || { echo "bootstrap_debian failed"; exit 1; }\n    install_kernel_and_packages || { echo "install_kernel_and_packages failed"; exit 1; }\n    install_github_packages || { echo "install_github_packages failed"; exit 1; }\n    configure_system || { echo "configure_system failed"; exit 1; }\n    create_filesystem || { echo "create_filesystem failed"; exit 1; }\n    configure_boot_loaders || { echo "configure_boot_loaders failed"; exit 1; }\n    create_efi_images || { echo "create_efi_images failed"; exit 1; }\n    create_uefi_boot_image || { echo "create_uefi_boot_image failed"; exit 1; }\n    create_iso_and_ova || { echo "create_iso_and_ova failed"; exit 1; }\n}' buildeb/buildeb.sh
+          
+          # Add error tracing
+          echo 'trap '\''echo "Error on line $LINENO"'\'' ERR' >> buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
 
-      - name: Run build script
-        run: sudo ./buildeb/buildeb.sh
+      - name: Show script content
+        run: cat buildeb/buildeb.sh
+
+      - name: Run build script with debug
+        run: sudo bash -x ./buildeb/buildeb.sh
         env:
           TERM: xterm-256color
 
       - name: Upload ISO artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: secOS-iso
           path: secOS.iso
 
       - name: Upload OVA artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: secOS-ova
           path: secOS.ova
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /tmp/LIVE_BOOT/**/*.log
+            /var/log/apt/*.log
