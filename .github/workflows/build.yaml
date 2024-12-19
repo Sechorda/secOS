@@ -1,44 +1,109 @@
-name: Test Debootstrap
+name: Test Build Functions
 on:
   workflow_dispatch:
 
 jobs:
-  test-debootstrap:
+  test-build-functions:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Basic Setup
         run: |
+          set -x  # Enable command echo for debugging
           apt-get update
-          apt-get install -y debootstrap sudo
+          apt-get install -y debootstrap
 
-      - name: System Info
+      - name: Create Test Script
         run: |
-          echo "Current date: $(date)"
-          echo "Current user: $(whoami)"
-          echo "Current directory: $(pwd)"
-          echo "System information:"
-          uname -a
+          cat > test_functions.sh << 'EOF'
+          #!/usr/bin/env bash
+          
+          # Enable error handling and debugging
+          set -ex
+          
+          DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
+          LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
+          USERNAME="mist"
+          
+          setup_build_env() {
+              echo "=== Setting up build environment ==="
+              apt-get update
+              apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+                  isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+                  mtools dosfstools wget unzip
+          }
+          
+          bootstrap_debian() {
+              echo "=== Running bootstrap_debian ==="
+              mkdir -p "${LIVE_BOOT_DIR}/chroot"
+              ls -la "${LIVE_BOOT_DIR}"
+              
+              echo "Starting debootstrap..."
+              debootstrap --arch=amd64 --variant=minbase stable \
+                  "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
+              
+              echo "Setting up basic directories..."
+              mkdir -p "${LIVE_BOOT_DIR}/chroot"/{dev,proc,sys,run}
+              ls -la "${LIVE_BOOT_DIR}/chroot"
+          }
+          
+          install_kernel_and_packages() {    
+              echo "=== Installing kernel and packages ==="
+              
+              echo "Creating user ${USERNAME}..."
+              chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}"
+              echo "${USERNAME}:live" | chroot "${LIVE_BOOT_DIR}/chroot" chpasswd
+              
+              echo "Configuring repositories..."
+              chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+                  "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list"
+              
+              echo "Installing Linux kernel..."
+              chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+                  "export DEBIAN_FRONTEND=noninteractive && \
+                  apt-get update && \
+                  apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
+                  install linux-image-amd64 live-boot systemd-sysv"
+          }
+          
+          main() {
+              echo "Starting test of first 3 functions..."
+              
+              setup_build_env
+              echo "Setup complete..."
+              
+              bootstrap_debian
+              echo "Bootstrap complete..."
+              
+              install_kernel_and_packages
+              echo "Kernel installation complete..."
+              
+              echo "All functions completed successfully"
+              echo "Final contents of ${LIVE_BOOT_DIR}/chroot:"
+              ls -la ${LIVE_BOOT_DIR}/chroot
+          }
+          
+          main
+          EOF
+          
+          chmod +x test_functions.sh
 
-      - name: Test Debootstrap
+      - name: Run Test Script
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          echo "Starting debootstrap test..."
-          
-          # Create test directory
-          mkdir -p /tmp/test-chroot
-          
-          # Run debootstrap
-          debootstrap --arch=amd64 --variant=minbase stable /tmp/test-chroot http://ftp.us.debian.org/debian/
-          
-          echo "Debootstrap completed. Contents of chroot:"
-          ls -la /tmp/test-chroot
+          ./test_functions.sh 2>&1 | tee build.log
 
-      - name: Test Chroot
+      - name: Debug Output
+        if: always()
         run: |
-          # Test basic chroot command
-          chroot /tmp/test-chroot /bin/bash -c "echo 'Hello from chroot'"
-          
-          # Test more commands in chroot
-          chroot /tmp/test-chroot /bin/bash -c "cat /etc/debian_version"
+          echo "=== Final System State ==="
+          echo "Directory structure:"
+          ls -R /tmp/LIVE_BOOT || true
+          echo "=== Last 50 lines of build log ==="
+          tail -n 50 build.log || true
