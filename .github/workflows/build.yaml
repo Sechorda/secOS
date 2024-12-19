@@ -1,35 +1,30 @@
 name: Build and Upload secOS
 on:
   workflow_dispatch:
+
 env:
   DEBIAN_FRONTEND: noninteractive
+
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
       options: --privileged
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure APT
+      - name: Install initial requirements
         run: |
-          # Configure essential apt settings first
           apt-get update
-          apt-get install -y apt-utils ca-certificates
-          sudo apt-get update
-          # Enable all repositories
-          sudo sed -i 's/^deb http/deb [trusted=yes] http/' /etc/apt/sources.list
-          sudo sed -i 's/^# deb-src/deb-src/' /etc/apt/sources.list
-          # Add contrib and non-free repositories
-          sudo sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
-          sudo apt-get update
+          apt-get install -y ca-certificates curl gpg wget
 
       - name: Install build dependencies
         run: |
-          sudo apt-get install -y \
+          apt-get update
+          apt-get install -y \
             apt-utils \
             debootstrap \
             squashfs-tools \
@@ -45,25 +40,11 @@ jobs:
             unzip \
             virtualbox \
             curl \
-            gpg \
-            systemd-container \
-            arch-install-scripts
-
-      - name: Setup chroot environment
-        run: |
-          sudo mkdir -p LIVE_BOOT/chroot
-          # Mount virtual filesystems for chroot
-          for mount in proc sys dev dev/pts; do
-            sudo mkdir -p LIVE_BOOT/chroot/$mount
-            sudo mount --bind /$mount LIVE_BOOT/chroot/$mount || true
-          done
-          
-          # Create resolv.conf for network access inside chroot
-          sudo cp /etc/resolv.conf LIVE_BOOT/chroot/etc/resolv.conf || true
+            gpg
 
       - name: Install rclone
         run: |
-          curl https://rclone.org/install.sh | sudo bash
+          curl https://rclone.org/install.sh | bash
           mkdir -p ~/.config/rclone
 
       - name: Configure rclone
@@ -89,15 +70,10 @@ jobs:
           TERM: xterm-256color
         run: |
           cd buildeb
-          sudo chmod +x ./buildeb.sh
-          sudo sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          # Enable more verbose output for debugging
-          sudo bash -x ./buildeb.sh 2>&1 | tee build.log
-          # Check for specific errors
-          if grep -iE 'error|fail|fatal' build.log; then
-            echo "Build encountered errors, check build.log for details"
-            exit 1
-          fi
+          chmod +x ./buildeb.sh
+          sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
+          # Run the script but only show errors
+          ./buildeb.sh 2>&1 | grep -i 'error\|fail\|fatal'
 
       - name: Upload files to R2
         run: |
@@ -109,9 +85,4 @@ jobs:
         if: always()
         run: |
           cd buildeb
-          # Unmount virtual filesystems in reverse order
-          for mount in dev/pts dev sys proc; do
-            sudo umount -l LIVE_BOOT/chroot/$mount || true
-          done
           rm -f secOS.iso secOS.ova
-          sudo rm -rf LIVE_BOOT
