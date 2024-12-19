@@ -32,15 +32,20 @@ jobs:
 
     - name: Modify build script
       run: |
-        # Extract commands from status tracked sections
-        sed -i 's/display_spinner $! [0-9]*//' buildeb/buildeb.sh
-        sed -i 's/) &$//' buildeb/buildeb.sh
-        sed -i '/^spinner=/d' buildeb/buildeb.sh
-        sed -i '/print_centered_ascii_art/,/^}/d' buildeb/buildeb.sh
-        sed -i '/^update_step/d' buildeb/buildeb.sh
-        sed -i '/clear/d' buildeb/buildeb.sh
-        sed -i '/tput/d' buildeb/buildeb.sh
-        chmod +x buildeb/buildeb.sh
+        # Create a temporary file for modifications
+        sed -e '/^spinner=/d' \
+            -e '/display_spinner/d' \
+            -e '/tput/d' \
+            -e '/clear/d' \
+            -e '/^update_step/d' \
+            -e '/print_centered_ascii_art()/,/^print_centered_ascii_art$/{/print_centered_ascii_art/!d}' \
+            -e 's/ \&>\/dev\/null//' \
+            -e 's/ >\/dev\/null//' \
+            -e 's/ 2>\&1//' \
+            buildeb/buildeb.sh > buildeb/buildeb_modified.sh
+        
+        # Make the new script executable
+        chmod +x buildeb/buildeb_modified.sh
 
     - name: Install dependencies
       run: |
@@ -50,4 +55,4 @@ jobs:
         mtools dosfstools wget unzip virtualbox
 
     - name: Build OS
-      run: cd buildeb && sudo ./buildeb.sh
+      run: cd buildeb && sudo ./buildeb_modified.sh
