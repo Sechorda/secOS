@@ -8,33 +8,40 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    container:
+      image: mcr.microsoft.com/vscode/devcontainers/universal:linux
+      options: --privileged
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install required packages
+      - name: Setup environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+          apt-get update
+          apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox curl
+            mtools dosfstools wget unzip virtualbox curl sudo
+          echo "Current date: $(date)"
+          echo "Current user: $(whoami)"
+          echo "TERM=$TERM"
 
       - name: Set up build environment
         run: |
           export TERM=xterm-256color
           export DEBIAN_FRONTEND=noninteractive
+          mkdir -p /tmp/LIVE_BOOT
           chmod +x buildeb/buildeb.sh
 
       - name: Run build script
         env:
           TERM: xterm-256color
           DEBIAN_FRONTEND: noninteractive
-        run: sudo -E ./buildeb/buildeb.sh
+        run: ./buildeb/buildeb.sh
 
       - name: Install rclone
         run: |
-          curl https://rclone.org/install.sh | sudo bash
+          curl https://rclone.org/install.sh | bash
           
       - name: Configure rclone
         run: |
@@ -51,6 +58,9 @@ jobs:
           
       - name: Upload artifacts to Cloudflare R2
         run: |
+          # List files for debugging
+          ls -la *.iso *.ova || true
+          
           # Upload .iso file if it exists
           if [ -f "secOS.iso" ]; then
             rclone copy secOS.iso r2:${{ secrets.R2_BUCKET_NAME }}/
@@ -66,3 +76,13 @@ jobs:
           else
             echo "secOS.ova not found"
           fi
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs
+          path: |
+            /tmp/LIVE_BOOT/chroot/*.log
+            /var/log/apt/*.log
+          if-no-files-found: ignore
