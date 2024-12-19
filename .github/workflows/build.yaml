@@ -19,12 +19,28 @@ jobs:
 
       - name: Modify Build Script
         run: |
-          # Create a temporary script with functions that remove interactive elements
           awk '
+          # Skip spinner and ascii art function definitions
           /^print_ascii_art\(\)/ { skip=1; next }
           /^display_spinner\(\)/ { skip=1; next }
           /^}$/ { if (skip) { skip=0; next } }
-          !skip { gsub(/\s*&\s*$/, ""); gsub(/spinner_pid=.*/, ""); gsub(/wait.*\$spinner_pid.*/, ""); print }
+          
+          # Process remaining lines
+          !skip {
+            # Remove spinner function calls
+            gsub(/display_spinner \$! [0-9]+/, "")
+            # Remove background process operators
+            gsub(/\s*&\s*$/, "")
+            # Remove spinner pid assignments
+            gsub(/spinner_pid=.*/, "")
+            # Remove wait commands for spinner
+            gsub(/wait.*\$spinner_pid.*/, "")
+            # Remove redirections to /dev/null
+            gsub(/ > \/dev\/null 2>&1/, "")
+            gsub(/ 2> \/dev\/null/, "")
+            gsub(/ > \/dev\/null/, "")
+            print
+          }
           ' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
           chmod +x buildeb/buildeb_ci.sh
 
