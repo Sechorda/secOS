@@ -26,31 +26,38 @@ jobs:
       
     - name: Modify build script
       run: |
-        # Add build info at top of script
-        sed -i "2i\# Build Date: 2024-12-19 18:45:37\n# User: Sechorda\n" buildeb/buildeb.sh
+        # Add build info and term variable at the top, after the shebang
+        sed -i '2i\# Build Date: 2024-12-19 18:47:49\n# User: Sechorda\nterm="xterm-256color"' buildeb/buildeb.sh
         
-        # Define term variable
-        sed -i "3i\term=\"xterm-256color\"" buildeb/buildeb.sh
+        # Remove spinner array declaration
+        sed -i '/^spinner=(/,/)/d' buildeb/buildeb.sh
         
-        # Remove spinner and status tracking
-        sed -i '/^spinner=/d' buildeb/buildeb.sh
-        sed -i '/^build_steps=/,/^)/d' buildeb/buildeb.sh
-        sed -i '/^# Function to update step status/,/^}/d' buildeb/buildeb.sh
-        sed -i '/^update_step/d' buildeb/buildeb.sh
+        # Remove build_steps array declaration
+        sed -i '/^build_steps=(/,/)/d' buildeb/buildeb.sh
+        
+        # Remove the display_spinner function while keeping other functions
+        sed -i '/^display_spinner()/,/^}/d' buildeb/buildeb.sh
+        
+        # Remove the update_step function while keeping other functions
+        sed -i '/^update_step()/,/^}/d' buildeb/buildeb.sh
+        
+        # Remove background process execution and spinner calls
+        sed -i 's/) \&\s*$/)/g' buildeb/buildeb.sh
         sed -i '/display_spinner/d' buildeb/buildeb.sh
-        sed -i '/^# Spinner characters/d' buildeb/buildeb.sh
         
-        # Remove async execution
-        sed -i 's/) \&$/)/' buildeb/buildeb.sh
-        
-        # Remove output redirections to allow terminal output
+        # Remove output redirections
         sed -i 's/ *&>[[:space:]]*\/dev\/null//g' buildeb/buildeb.sh
         sed -i 's/ *>[[:space:]]*\/dev\/null//g' buildeb/buildeb.sh
         sed -i 's/ *2>&1//g' buildeb/buildeb.sh
         
-        # Clean up main function
-        sed -i '/for i in "${!build_steps\[@\]}"/,/done/d' buildeb/buildeb.sh
-        sed -i '/print_centered_ascii_art/d' buildeb/buildeb.sh
+        # Clean up main function while preserving its definition
+        sed -i '/^main()/,/^}/ {
+          /for i in "${!build_steps\[@\]}"/,/done/d
+          /print_centered_ascii_art/d
+        }' buildeb/buildeb.sh
+        
+        # Clean up any remaining spinner references
+        sed -i '/# Spinner characters/d' buildeb/buildeb.sh
       
     - name: Run build script
       run: sudo ./buildeb/buildeb.sh
