@@ -1,4 +1,4 @@
-name: Build and Upload secOS
+name: Build secOS
 on:
   push:
     branches:
@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      TERM: xterm-256color  # Setting TERM environment variable
     
     steps:
       - name: Checkout repository
@@ -18,16 +16,22 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl
+          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+            mtools dosfstools wget unzip virtualbox curl
 
-      - name: Make build script executable
-        run: chmod +x buildeb/buildeb.sh
+      - name: Set up build environment
+        run: |
+          export TERM=xterm-256color
+          export DEBIAN_FRONTEND=noninteractive
+          chmod +x buildeb/buildeb.sh
 
       - name: Run build script
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo -E ./buildeb/buildeb.sh
-        
+        env:
+          TERM: xterm-256color
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo -E ./buildeb/buildeb.sh
+
       - name: Install rclone
         run: |
           curl https://rclone.org/install.sh | sudo bash
@@ -45,31 +49,20 @@ jobs:
           acl = private
           EOF
           
-      - name: Upload to Cloudflare R2
+      - name: Upload artifacts to Cloudflare R2
         run: |
-          # List files for debugging
-          ls -la ./*.iso ./*.ova || true
-          
-          # Upload .iso file if exists
-          if ls ./*.iso >/dev/null 2>&1; then
-            rclone copy ./*.iso r2:${{ secrets.R2_BUCKET_NAME }}/
+          # Upload .iso file if it exists
+          if [ -f "secOS.iso" ]; then
+            rclone copy secOS.iso r2:${{ secrets.R2_BUCKET_NAME }}/
+            echo "Uploaded secOS.iso to R2"
           else
-            echo "No .iso files found"
+            echo "secOS.iso not found"
           fi
           
-          # Upload .ova file if exists
-          if ls ./*.ova >/dev/null 2>&1; then
-            rclone copy ./*.ova r2:${{ secrets.R2_BUCKET_NAME }}/
+          # Upload .ova file if it exists
+          if [ -f "secOS.ova" ]; then
+            rclone copy secOS.ova r2:${{ secrets.R2_BUCKET_NAME }}/
+            echo "Uploaded secOS.ova to R2"
           else
-            echo "No .ova files found"
+            echo "secOS.ova not found"
           fi
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-logs
-          path: |
-            ./*.log
-            buildeb/*.log
-          if-no-files-found: ignore
