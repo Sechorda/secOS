@@ -69,7 +69,6 @@ jobs:
             linux-headers-amd64 \
             acl \
             locales \
-            virtualbox \
             sudo \
             git \
             golang-go \
