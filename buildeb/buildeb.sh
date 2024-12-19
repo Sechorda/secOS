@@ -373,11 +373,9 @@ install_github_packages() {
         "
 
         # Installing bbot and configuring pipx path for mist user
-        sudo mount -t proc proc "${LIVE_BOOT_DIR}/chroot/proc"
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
            su - mist -c 'pipx install bbot >/dev/null 2>&1'
         "
-        sudo umount "${LIVE_BOOT_DIR}/chroot/proc"
 
         # Installing Spiderfoot
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
