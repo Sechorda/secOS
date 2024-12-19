@@ -604,6 +604,11 @@ create_iso_and_ova() {
 }
 
 main() {
+    # Check and remove existing temporary directory if it exists
+    if [ -d "${LIVE_BOOT_DIR}" ]; then
+        sudo rm -rf "${LIVE_BOOT_DIR}"
+    fi
+    
     clear
     print_centered_ascii_art
 
