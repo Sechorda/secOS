@@ -17,9 +17,15 @@ jobs:
           apt-get update
           apt-get install -y debootstrap sudo
 
-      - name: Create Build Script Override
+      - name: Modify Build Script
         run: |
-          sed '/print_ascii_art/d; /display_spinner/d; /spinner_pid/d; /wait/d; /&$/d' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
+          # Create a temporary script with functions that remove interactive elements
+          awk '
+          /^print_ascii_art\(\)/ { skip=1; next }
+          /^display_spinner\(\)/ { skip=1; next }
+          /^}$/ { if (skip) { skip=0; next } }
+          !skip { gsub(/\s*&\s*$/, ""); gsub(/spinner_pid=.*/, ""); gsub(/wait.*\$spinner_pid.*/, ""); print }
+          ' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
           chmod +x buildeb/buildeb_ci.sh
 
       - name: Run Build Script
