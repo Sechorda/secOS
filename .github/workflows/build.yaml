@@ -10,80 +10,103 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     env:
-      # Environment setup
       TERM: xterm-256color
       DEBIAN_FRONTEND: noninteractive
-      # Disable progress bars and interactive prompts
-      CI: true
-      CONTINUOUS_INTEGRATION: true
+      # Build information
+      BUILD_DATE: "2024-12-19 18:36:32"
+      BUILD_USER: "Sechorda"
       # Force verbose output
-      VERBOSE: 1
-      # Current date/time for build tracking
-      BUILD_DATE: ${{ '2024-12-19 18:30:30' }}
-      BUILD_USER: ${{ 'Sechorda' }}
-      # Disable spinners and progress indicators
-      PROGRESS: 0
-      PROGRESS_BAR: 0
-      NO_COLOR: 1
-      FORCE_TERM_DATA: yes
-      
+      VERBOSE: true
+      DEBUG: true
+
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Full history for proper versioning
+        fetch-depth: 0
 
     - name: Setup build environment
       run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-          isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-          mtools dosfstools wget unzip virtualbox
+        # Enable verbose output for apt
+        echo 'Debug::pkgProblemResolver "true";' | sudo tee /etc/apt/apt.conf.d/debug
+        echo 'Debug::pkgDepCache::AutoInstall "true";' | sudo tee -a /etc/apt/apt.conf.d/debug
+        
+        # Update with verbose output
+        sudo apt-get update -o Debug::pkgProblemResolver=true
+        
+        # Install required packages with verbose output
+        sudo apt-get install -y -V \
+          apt-utils \
+          debootstrap \
+          squashfs-tools \
+          xorriso \
+          isolinux \
+          syslinux-efi \
+          grub-pc-bin \
+          grub-efi-amd64-bin \
+          grub-efi-ia32-bin \
+          mtools \
+          dosfstools \
+          wget \
+          unzip \
+          virtualbox
 
-    - name: Prepare build script execution
+    - name: Modify build script
       run: |
-        # Make the build script executable
-        chmod +x buildeb/buildeb.sh
+        # Create sed script for modifications
+        cat << 'EOL' > modify_script.sed
+        # Remove spinner function and related variables
+        /^spinner=/d
+        /^build_steps=/d
+        /^update_step/d
+        /^display_spinner/d
+        /^print_centered_ascii_art/,/^}/d
         
-        # Create a wrapper to set shell options for verbose output
-        cat << 'EOL' > run_build.sh
-        #!/bin/bash
+        # Remove the initialization block
+        /if \[ -d "\${LIVE_BOOT_DIR}" \]; then/,/done/d
         
-        # Set shell options for verbose output
-        set -x  # Print commands and their arguments as they are executed
+        # Remove display_spinner calls and background processes
+        s/ *&\s*$//
+        s/display_spinner \$! [0-9]//
         
-        # Export additional environment variables to control output
-        export SHELLOPTS
-        export VERBOSE=1
-        export NO_SPINNER=1
+        # Remove clear command and output suppression
+        /^[[:space:]]*clear/d
+        s/ *>[^ ]* 2>&1//g
+        s/ *&>[^ ]*//g
+        s/ *>[^ ]*//g
         
-        # Redirect all output to both console and log file
-        exec 1> >(tee build.log) 2>&1
+        # Add verbose flags to key commands
+        s/apt-get install/apt-get install -V/g
+        s/debootstrap /debootstrap --verbose /g
+        s/mksquashfs /mksquashfs -info /g
+        s/xorriso /xorriso -report_about WARNING /g
         
-        # Run the actual build script
-        ./buildeb/buildeb.sh
+        # Add debug output at the start of each function
+        /^[a-zA-Z_][a-zA-Z0-9_]*().*{/a\
+            echo "[DEBUG] Starting function: $FUNCNAME at $(date "+%Y-%m-%d %H:%M:%S")"
         EOL
         
-        chmod +x run_build.sh
+        # Create backup of original script
+        cp buildeb/buildeb.sh buildeb/buildeb.sh.backup
+        
+        # Apply modifications
+        sed -i.bak -f modify_script.sed buildeb/buildeb.sh
+        
+        # Add debug options at the start of the script
+        sed -i '2i set -x' buildeb/buildeb.sh
+        sed -i '3i export PS4='"'"'+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'"'" buildeb/buildeb.sh
+        
+        # Add build information
+        sed -i "4i echo 'Build started by: ${BUILD_USER} at ${BUILD_DATE}'" buildeb/buildeb.sh
+        
+        # Make script executable
+        chmod +x buildeb/buildeb.sh
 
     - name: Run build script
       run: |
-        # Run through the wrapper script
-        sudo ./run_build.sh
-
-    - name: Upload build log
-      uses: actions/upload-artifact@v3
-      with:
-        name: build-log
-        path: build.log
-        if-no-files-found: warn
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: secos-build
-        path: |
-          *.iso
-          *.ova
-        if-no-files-found: warn
+        # Set maximum verbosity for bash
+        set -x
+        export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+        
+        # Run the build script with verbose output
+        sudo -E bash -x ./buildeb/buildeb.sh
