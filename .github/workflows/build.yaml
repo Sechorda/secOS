@@ -19,26 +19,28 @@ jobs:
 
       - name: Modify Build Script
         run: |
+          # Add set -x at the start of the script and remove all redirections
           awk '
-          # Skip spinner and ascii art function definitions
+          # Add debug mode at the start of the script
+          NR==1 { print "set -x"; }
+          
+          # Skip spinner and ascii art functions
           /^print_ascii_art\(\)/ { skip=1; next }
           /^display_spinner\(\)/ { skip=1; next }
           /^}$/ { if (skip) { skip=0; next } }
           
           # Process remaining lines
           !skip {
-            # Remove spinner function calls
+            # Remove all types of redirections and spinners
             gsub(/display_spinner \$! [0-9]+/, "")
-            # Remove background process operators
             gsub(/\s*&\s*$/, "")
-            # Remove spinner pid assignments
             gsub(/spinner_pid=.*/, "")
-            # Remove wait commands for spinner
             gsub(/wait.*\$spinner_pid.*/, "")
-            # Remove redirections to /dev/null
             gsub(/ > \/dev\/null 2>&1/, "")
             gsub(/ 2> \/dev\/null/, "")
             gsub(/ > \/dev\/null/, "")
+            gsub(/exec 2>\/dev\/null/, "")
+            gsub(/exec [0-9]*>&[0-9]*/, "")
             print
           }
           ' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
@@ -49,4 +51,4 @@ jobs:
           TERM: xterm-256color
           DEBIAN_FRONTEND: noninteractive
         run: |
-          ./buildeb/buildeb_ci.sh
+          bash -x ./buildeb/buildeb_ci.sh
