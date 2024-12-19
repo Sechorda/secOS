@@ -1,5 +1,4 @@
 name: Build SecOS
-
 on:
   workflow_dispatch:
   push:
@@ -12,23 +11,16 @@ on:
     paths:
       - 'buildeb/**'
       - 'config/**'
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/vscode/devcontainers/universal:latest
-    env:
-      TERM: xterm-256color
-      DEBIAN_FRONTEND: noninteractive
-
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
     - name: Modify build script
       run: |
+        set -x  # Enable bash debug mode
         cd buildeb
         # Remove display_spinner calls and background process flags
         sed -i 's/display_spinner $! [0-9]*$//' buildeb.sh
@@ -38,17 +30,38 @@ jobs:
         main_line=$(grep -n "^main()" buildeb.sh | cut -d: -f1)
         
         # Delete everything after main() and replace with simplified version
-        sed -i "${main_line},\$c\\main() {\n    if [ -d \"\${LIVE_BOOT_DIR}\" ]; then\n        sudo rm -rf \"\${LIVE_BOOT_DIR}\"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}\n\nmain" buildeb.sh
+        sed -i "${main_line},\$c\\main() {\n    set -x\n    if [ -d \"\${LIVE_BOOT_DIR}\" ]; then\n        sudo rm -rf \"\${LIVE_BOOT_DIR}\"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}\n\nmain" buildeb.sh
         
         # Clean up any empty functions if we accidentally broke them
         sed -i '/^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*()[[:space:]]*{[[:space:]]*}/d' buildeb.sh
-
+        
+        # Show the modified script
+        echo "Modified buildeb.sh contents:"
+        cat buildeb.sh
     - name: Install dependencies
       run: |
-        apt-get update
-        apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+        set -x  # Enable bash debug mode
+        sudo apt-get update -y -qq
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V apt-utils debootstrap squashfs-tools xorriso \
         isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
         mtools dosfstools wget unzip virtualbox
-
     - name: Build OS
-      run: cd buildeb && ./buildeb.sh
+      run: |
+        set -x  # Enable bash debug mode
+        cd buildeb
+        # Add verbose flags to script execution
+        sudo bash -x ./buildeb.sh
+    - name: List artifacts
+      if: always()  # Run even if previous step fails
+      run: |
+        set -x  # Enable bash debug mode
+        cd buildeb
+        ls -la
+        echo "Contents of current directory:"
+        pwd
+        echo "System memory status:"
+        free -h
+        echo "Disk space:"
+        df -h
+        echo "Last 100 lines of system log:"
+        sudo tail -n 100 /var/log/syslog || true
