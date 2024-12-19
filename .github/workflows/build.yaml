@@ -17,6 +17,8 @@ jobs:
     container:
       image: debian:bookworm
       options: --privileged
+      env:
+        TERM: xterm-256color
     steps:
     - name: Install git
       run: |
