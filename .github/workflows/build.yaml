@@ -1,43 +1,89 @@
 name: Build secOS
+
 on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/vscode/devcontainers/universal:linux
-      options: --privileged
-
+    
+    env:
+      # Environment setup
+      TERM: xterm-256color
+      DEBIAN_FRONTEND: noninteractive
+      # Disable progress bars and interactive prompts
+      CI: true
+      CONTINUOUS_INTEGRATION: true
+      # Force verbose output
+      VERBOSE: 1
+      # Current date/time for build tracking
+      BUILD_DATE: ${{ '2024-12-19 18:30:30' }}
+      BUILD_USER: ${{ 'Sechorda' }}
+      # Disable spinners and progress indicators
+      PROGRESS: 0
+      PROGRESS_BAR: 0
+      NO_COLOR: 1
+      FORCE_TERM_DATA: yes
+      
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Full history for proper versioning
 
-      - name: Basic Setup
-        run: |
-          apt-get update
-          apt-get install -y debootstrap sudo
+    - name: Setup build environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+          isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+          mtools dosfstools wget unzip virtualbox
 
-      - name: Modify Build Script
-        run: |
-          # Add debug mode and remove interactive elements
-          awk '
-          # Add debug at start
-          NR==1 { print "set -x"; }
-          
-          # Skip spinner and ascii art functions
-          /^print_ascii_art\(\)/ { skip=1; next }
-          /^display_spinner\(\)/ { skip=1; next }
-          /^}$/ { if (skip) { skip=0; next } }
-          
-          # Process remaining lines
-          !skip {
-            # Remove all redirections and spinners
-            gsub(/display_spinner \$! [0-9]+/, "")
-            gsub(/\s*&\s*$/, "")
-            gsub(/spinner_pid=.*/, "")
-            gsub(/wait.*\$spinner_pid.*/, "")
-            gsub(/ > \/dev\/null 2>&1/, "")
-            gsub(/ 2> \/dev\/null/, "")
-            gsub(/ > \/dev\/null/, "")
-            gsub(/exec 2>\/dev\/
+    - name: Prepare build script execution
+      run: |
+        # Make the build script executable
+        chmod +x buildeb/buildeb.sh
+        
+        # Create a wrapper to set shell options for verbose output
+        cat << 'EOL' > run_build.sh
+        #!/bin/bash
+        
+        # Set shell options for verbose output
+        set -x  # Print commands and their arguments as they are executed
+        
+        # Export additional environment variables to control output
+        export SHELLOPTS
+        export VERBOSE=1
+        export NO_SPINNER=1
+        
+        # Redirect all output to both console and log file
+        exec 1> >(tee build.log) 2>&1
+        
+        # Run the actual build script
+        ./buildeb/buildeb.sh
+        EOL
+        
+        chmod +x run_build.sh
+
+    - name: Run build script
+      run: |
+        # Run through the wrapper script
+        sudo ./run_build.sh
+
+    - name: Upload build log
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-log
+        path: build.log
+        if-no-files-found: warn
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: secos-build
+        path: |
+          *.iso
+          *.ova
+        if-no-files-found: warn
