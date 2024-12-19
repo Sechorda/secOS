@@ -1,11 +1,8 @@
 name: Build and Upload secOS
-
 on:
   workflow_dispatch:
-
 env:
   DEBIAN_FRONTEND: noninteractive
-
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
@@ -58,6 +55,16 @@ jobs:
           bucket_name = ${R2_BUCKET_NAME}
           EOF
 
+      - name: Check directory contents
+        run: |
+          ls -la buildeb/
+
+      - name: Check script permissions and format
+        run: |
+          cd buildeb
+          file ./buildeb.sh
+          cat -A ./buildeb.sh | head -n 5
+
       - name: Run build script
         env:
           TERM: xterm-256color
@@ -65,8 +72,8 @@ jobs:
           cd buildeb
           sudo chmod +x ./buildeb.sh
           sudo sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          # Run the script but only show errors
-          sudo ./buildeb.sh 2>&1 | grep -i 'error\|fail\|fatal'
+          # Run with full output for debugging
+          sudo bash -x ./buildeb.sh
 
       - name: Upload files to R2
         run: |
