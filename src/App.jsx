@@ -32,13 +32,13 @@ export default function App() {
         <div className="downloads-container">
           <DownloadCard 
             type="ISO Image"
-            size="2.1 GB"
-            url="#"
+            size="2.5 GB"
+            url="https://download.sec-os.com/uploads/secOS.iso"
           />
           <DownloadCard 
             type="OVA Image"
-            size="2.4 GB"
-            url="#"
+            size="2.5 GB"
+            url="https://download.sec-os.com/uploads/secOS.ova"
           />
         </div>
 
