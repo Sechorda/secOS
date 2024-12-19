@@ -55,15 +55,43 @@ jobs:
           bucket_name = ${R2_BUCKET_NAME}
           EOF
 
-      - name: Check directory contents
+      - name: Run debootstrap and verify installation
         run: |
-          ls -la buildeb/
-
-      - name: Check script permissions and format
-        run: |
-          cd buildeb
-          file ./buildeb.sh
-          cat -A ./buildeb.sh | head -n 5
+          echo "Starting debootstrap process..."
+          
+          # Create LIVE_BOOT directory
+          sudo mkdir -p /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot
+          
+          # Run debootstrap with essential packages
+          sudo debootstrap --arch=amd64 --variant=minbase \
+            --include=systemd,systemd-sysv,sudo,passwd,bash-completion,linux-image-amd64 \
+            stable /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot http://ftp.us.debian.org/debian/
+          
+          # Verify debootstrap completion
+          if [ ! -f "/home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/bin/bash" ]; then
+            echo "Error: /bin/bash not found in chroot. Debootstrap failed."
+            exit 1
+          fi
+          
+          if [ ! -f "/home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/usr/bin/useradd" ]; then
+            echo "Error: useradd not found in chroot. Essential packages not installed."
+            exit 1
+          fi
+          
+          # Verify kernel installation
+          if [ ! -f "/home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/boot/vmlinuz-*" ]; then
+            echo "Error: Linux kernel not found in chroot."
+            echo "Contents of /boot:"
+            ls -la /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/boot/
+            exit 1
+          fi
+          
+          # Print chroot environment information
+          echo "Chroot environment details:"
+          ls -la /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/bin/
+          ls -la /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/chroot/boot/
+          
+          echo "Debootstrap completed successfully!"
 
       - name: Run build script
         env:
@@ -72,12 +100,31 @@ jobs:
           cd buildeb
           sudo chmod +x ./buildeb.sh
           sudo sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          # Run with full output for debugging
-          sudo bash -x ./buildeb.sh
+          
+          # Create necessary directories for GRUB
+          sudo mkdir -p /home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/staging/boot/grub/x86_64-efi
+          
+          # Verify directories exist before running build script
+          if [ ! -d "/home/runner/work/secOS/secOS/buildeb/LIVE_BOOT/staging/boot/grub/x86_64-efi" ]; then
+            echo "Error: GRUB directories not created successfully."
+            exit 1
+          fi
+          
+          # Run the build script with full output
+          sudo ./buildeb.sh
 
       - name: Upload files to R2
         run: |
           cd buildeb
+          # Verify ISO and OVA files exist before uploading
+          if [ ! -f "secOS.iso" ]; then
+            echo "Error: secOS.iso not found!"
+            exit 1
+          fi
+          if [ ! -f "secOS.ova" ]; then
+            echo "Error: secOS.ova not found!"
+            exit 1
+          fi
           rclone copy secOS.iso r2:${R2_BUCKET_NAME}
           rclone copy secOS.ova r2:${R2_BUCKET_NAME}
 
