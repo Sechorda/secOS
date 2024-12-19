@@ -3,7 +3,7 @@
     <img
       alt="secOS Logo"
       width="125"
-      src="./images/transparent_logo.png"
+      src="https://github.com/Sechorda/secOS/blob/gh-pages/images/transparent_logo.png"
     />
   </a>
   <h1><strong>secOS</strong></h1>
