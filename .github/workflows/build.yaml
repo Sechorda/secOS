@@ -16,6 +16,16 @@ jobs:
     steps:
       - name: System setup
         run: |
+          # Clear existing sources
+          rm -f /etc/apt/sources.list.d/*.sources
+          
+          # Setup proper sources
+          cat > /etc/apt/sources.list << EOF
+          deb http://deb.debian.org/debian bookworm main contrib non-free-firmware
+          deb http://security.debian.org/debian-security bookworm-security main contrib non-free-firmware
+          deb http://deb.debian.org/debian bookworm-updates main contrib non-free-firmware
+          EOF
+          
           # Setup proper system environment
           apt-get update
           apt-get install -y \
@@ -36,12 +46,6 @@ jobs:
 
       - name: Install build requirements
         run: |
-          # Configure proper apt sources
-          cat > /etc/apt/sources.list << EOF
-          deb http://deb.debian.org/debian bookworm main contrib non-free-firmware
-          deb http://security.debian.org/debian-security bookworm-security main contrib non-free-firmware
-          deb http://deb.debian.org/debian bookworm-updates main contrib non-free-firmware
-          EOF
 
           # Update and install required packages
           apt-get update
@@ -67,9 +71,11 @@ jobs:
             acl \
             locales
 
-          # Configure locale
-          locale-gen en_US.UTF-8
-          update-locale LANG=en_US.UTF-8
+          # Configure locales properly
+          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+          locale-gen
+          echo "LANG=en_US.UTF-8" > /etc/default/locale
+          . /etc/default/locale
 
       - name: Prepare build environment
         run: |
