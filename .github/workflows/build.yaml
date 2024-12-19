@@ -1,7 +1,7 @@
 name: Build SecOS
 
 on:
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
@@ -30,22 +30,38 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y sudo
 
-    - name: Modify build script
+    - name: Create minimal build script
       run: |
-        # Create a temporary file for modifications
-        sed -e '/^spinner=/d' \
-            -e '/display_spinner/d' \
-            -e '/tput/d' \
-            -e '/clear/d' \
-            -e '/^update_step/d' \
-            -e '/print_centered_ascii_art()/,/^print_centered_ascii_art$/{/print_centered_ascii_art/!d}' \
-            -e 's/ \&>\/dev\/null//' \
-            -e 's/ >\/dev\/null//' \
-            -e 's/ 2>\&1//' \
-            buildeb/buildeb.sh > buildeb/buildeb_modified.sh
-        
-        # Make the new script executable
-        chmod +x buildeb/buildeb_modified.sh
+        cd buildeb
+        # Extract core functions and arrays
+        grep -A1000 "CUSTOM_PROGRAMS=" buildeb.sh | grep -B1000 "^main()" > core.sh
+        # Add shebang and essential setup
+        echo '#!/usr/bin/env bash' > build_minimal.sh
+        echo 'set -e' >> build_minimal.sh
+        echo 'LIVE_BOOT_DIR="/tmp/LIVE_BOOT"' >> build_minimal.sh
+        echo 'trap "rm -rf \${LIVE_BOOT_DIR}" EXIT' >> build_minimal.sh
+        # Add core functions
+        cat core.sh >> build_minimal.sh
+        # Add simplified main function
+        cat << 'EOF' >> build_minimal.sh
+        main() {
+            if [ -d "${LIVE_BOOT_DIR}" ]; then
+                sudo rm -rf "${LIVE_BOOT_DIR}"
+            fi
+            setup_build_env
+            bootstrap_debian
+            install_kernel_and_packages
+            install_github_packages    
+            configure_system
+            create_filesystem
+            configure_boot_loaders
+            create_efi_images
+            create_uefi_boot_image
+            create_iso_and_ova
+        }
+        main
+        EOF
+        chmod +x build_minimal.sh
 
     - name: Install dependencies
       run: |
@@ -55,4 +71,4 @@ jobs:
         mtools dosfstools wget unzip virtualbox
 
     - name: Build OS
-      run: cd buildeb && sudo ./buildeb_modified.sh
+      run: cd buildeb && sudo ./build_minimal.sh
