@@ -5,59 +5,20 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip virtualbox
-        
-    - name: Set execute permissions
-      run: chmod +x buildeb/buildeb.sh
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+            mtools dosfstools wget unzip virtualbox
       
-    - name: Modify build script
-      run: |
-        # Add build info and term variable at the top, after the shebang
-        sed -i '2i\# Build Date: 2024-12-19 18:47:49\n# User: Sechorda\nterm="xterm-256color"' buildeb/buildeb.sh
-        
-        # Remove spinner array declaration
-        sed -i '/^spinner=(/,/)/d' buildeb/buildeb.sh
-        
-        # Remove build_steps array declaration
-        sed -i '/^build_steps=(/,/)/d' buildeb/buildeb.sh
-        
-        # Remove the display_spinner function while keeping other functions
-        sed -i '/^display_spinner()/,/^}/d' buildeb/buildeb.sh
-        
-        # Remove the update_step function while keeping other functions
-        sed -i '/^update_step()/,/^}/d' buildeb/buildeb.sh
-        
-        # Remove background process execution and spinner calls
-        sed -i 's/) \&\s*$/)/g' buildeb/buildeb.sh
-        sed -i '/display_spinner/d' buildeb/buildeb.sh
-        
-        # Remove output redirections
-        sed -i 's/ *&>[[:space:]]*\/dev\/null//g' buildeb/buildeb.sh
-        sed -i 's/ *>[[:space:]]*\/dev\/null//g' buildeb/buildeb.sh
-        sed -i 's/ *2>&1//g' buildeb/buildeb.sh
-        
-        # Clean up main function while preserving its definition
-        sed -i '/^main()/,/^}/ {
-          /for i in "${!build_steps\[@\]}"/,/done/d
-          /print_centered_ascii_art/d
-        }' buildeb/buildeb.sh
-        
-        # Clean up any remaining spinner references
-        sed -i '/# Spinner characters/d' buildeb/buildeb.sh
-      
-    - name: Run build script
-      run: sudo ./buildeb/buildeb.sh
+      - name: Build secOS
+        run: |
+          sudo ./buildeb/buildeb.sh
