@@ -2,22 +2,31 @@ name: Build and Upload secOS
 on:
   push:
     branches:
-      - main  # or your default branch
-  workflow_dispatch:  # allows manual triggering
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TERM: xterm-256color  # Setting TERM environment variable
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
 
       - name: Run build script
-        run: ./buildeb/buildeb.sh
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo -E ./buildeb/buildeb.sh
         
       - name: Install rclone
         run: |
@@ -38,7 +47,29 @@ jobs:
           
       - name: Upload to Cloudflare R2
         run: |
-          # Upload .iso file
-          rclone copy ./*.iso r2:${{ secrets.R2_BUCKET_NAME }}/
-          # Upload .ova file
-          rclone copy ./*.ova r2:${{ secrets.R2_BUCKET_NAME }}/
+          # List files for debugging
+          ls -la ./*.iso ./*.ova || true
+          
+          # Upload .iso file if exists
+          if ls ./*.iso >/dev/null 2>&1; then
+            rclone copy ./*.iso r2:${{ secrets.R2_BUCKET_NAME }}/
+          else
+            echo "No .iso files found"
+          fi
+          
+          # Upload .ova file if exists
+          if ls ./*.ova >/dev/null 2>&1; then
+            rclone copy ./*.ova r2:${{ secrets.R2_BUCKET_NAME }}/
+          else
+            echo "No .ova files found"
+          fi
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs
+          path: |
+            ./*.log
+            buildeb/*.log
+          if-no-files-found: ignore
