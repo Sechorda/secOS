@@ -1,4 +1,4 @@
-name: Build secOS
+name: Test secOS Build
 
 on:
   push:
@@ -10,46 +10,46 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Set up environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip virtualbox
-    
-    - name: Configure environment variables
-      run: |
-        echo "TERM=xterm-256color" >> $GITHUB_ENV
-        echo "DEBIAN_FRONTEND=noninteractive" >> $GITHUB_ENV
-        
-    - name: Remove spinner functions
-      run: |
-        # Remove spinner function calls but keep definitions
-        sed -i '/display_spinner.*\$!.*/ {N; d}' buildeb/buildeb.sh
-        
-    - name: Make script executable
-      run: |
-        chmod +x buildeb/buildeb.sh
-        
-    - name: Run build script
-      run: |
-        cd buildeb
-        sudo -E ./buildeb.sh
-        
-    - name: Upload ISO artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: secOS-iso
-        path: buildeb/secOS.iso
-        
-    - name: Upload OVA artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: secOS-ova
-        path: buildeb/secOS.ova
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up system requirements
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+            mtools dosfstools wget unzip virtualbox
+
+      - name: Remove spinner functions
+        run: |
+          sed -i '/ *spinner=(/,/^}/d' build.sh
+          sed -i '/display_spinner/d' build.sh
+          sed -i 's/) &/)/g' build.sh
+          sed -i '/^[[:space:]]*local delay=0.1/d' build.sh
+          sed -i '/tput cup/d' build.sh
+
+      - name: Make build script executable
+        run: chmod +x build.sh
+
+      - name: Run build script
+        run: sudo ./build.sh
+        env:
+          TERM: xterm-256color
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: secOS-iso
+          path: secOS.iso
+
+      - name: Upload OVA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: secOS-ova
+          path: secOS.ova
