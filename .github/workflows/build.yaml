@@ -16,6 +16,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/vscode/devcontainers/universal:latest
     env:
       TERM: xterm-256color
       DEBIAN_FRONTEND: noninteractive
@@ -25,25 +27,28 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup sudo
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y sudo
-
     - name: Modify build script
       run: |
         cd buildeb
+        # Remove display_spinner calls and background process flags
+        sed -i 's/display_spinner $! [0-9]*$//' buildeb.sh
+        sed -i 's/) \&$/\)/' buildeb.sh
+        
         # Find the line number where main() starts
         main_line=$(grep -n "^main()" buildeb.sh | cut -d: -f1)
+        
         # Delete everything after main() and replace with simplified version
         sed -i "${main_line},\$c\\main() {\n    if [ -d \"\${LIVE_BOOT_DIR}\" ]; then\n        sudo rm -rf \"\${LIVE_BOOT_DIR}\"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}\n\nmain" buildeb.sh
+        
+        # Clean up any empty functions if we accidentally broke them
+        sed -i '/^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*()[[:space:]]*{[[:space:]]*}/d' buildeb.sh
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+        apt-get update
+        apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
         isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
         mtools dosfstools wget unzip virtualbox
 
     - name: Build OS
-      run: cd buildeb && sudo ./buildeb.sh
+      run: cd buildeb && ./buildeb.sh
