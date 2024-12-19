@@ -26,8 +26,17 @@ jobs:
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox
 
-      - name: Remove redirects for debugging
-        run: sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
+      - name: Clean script
+        run: |
+          # Remove redirects
+          sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
+          # Remove update_step calls
+          sed -i '/update_step.*completed/d' buildeb/buildeb.sh
+          # Remove tput commands
+          sed -i '/tput cup.*/d' buildeb/buildeb.sh
+          # Remove spinner logic
+          sed -i '/spinner=/,/)/d' buildeb/buildeb.sh
+          sed -i '/display_spinner.*/d' buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
