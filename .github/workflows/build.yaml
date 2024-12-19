@@ -20,41 +20,48 @@ jobs:
         fetch-depth: 0
     - name: Modify build script
       run: |
-        set -x  # Enable bash debug mode
+        set -x
         cd buildeb
-        # Remove display_spinner calls and background process flags
         sed -i 's/display_spinner $! [0-9]*$//' buildeb.sh
         sed -i 's/) \&$/\)/' buildeb.sh
         
-        # Find the line number where main() starts
-        main_line=$(grep -n "^main()" buildeb.sh | cut -d: -f1)
+        # Remove redirections to /dev/null for caido-cli installation
+        sed -i 's|>/dev/null 2>&1||g' buildeb.sh
         
-        # Delete everything after main() and replace with simplified version
+        main_line=$(grep -n "^main()" buildeb.sh | cut -d: -f1)
         sed -i "${main_line},\$c\\main() {\n    set -x\n    if [ -d \"\${LIVE_BOOT_DIR}\" ]; then\n        sudo rm -rf \"\${LIVE_BOOT_DIR}\"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}\n\nmain" buildeb.sh
         
-        # Clean up any empty functions if we accidentally broke them
         sed -i '/^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*()[[:space:]]*{[[:space:]]*}/d' buildeb.sh
         
-        # Show the modified script
         echo "Modified buildeb.sh contents:"
         cat buildeb.sh
     - name: Install dependencies
       run: |
-        set -x  # Enable bash debug mode
+        set -x
         sudo apt-get update -y -qq
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V apt-utils debootstrap squashfs-tools xorriso \
         isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
         mtools dosfstools wget unzip virtualbox
     - name: Build OS
       run: |
-        set -x  # Enable bash debug mode
+        set -x
         cd buildeb
-        # Add verbose flags to script execution
+        # Add set -e to fail on first error and print the caido-cli file before extracting
         sudo bash -x ./buildeb.sh
-    - name: List artifacts
-      if: always()  # Run even if previous step fails
+    - name: Debug failure
+      if: failure()
       run: |
-        set -x  # Enable bash debug mode
+        set -x
+        echo "Contents of /tmp/LIVE_BOOT/chroot/tmp:"
+        ls -la /tmp/LIVE_BOOT/chroot/tmp || true
+        echo "Contents of /usr/local/bin in chroot:"
+        ls -la /tmp/LIVE_BOOT/chroot/usr/local/bin || true
+        echo "Checking if caido-cli.tar.gz exists:"
+        file /tmp/LIVE_BOOT/chroot/tmp/caido-cli.tar.gz || true
+    - name: List artifacts
+      if: always()
+      run: |
+        set -x
         cd buildeb
         ls -la
         echo "Contents of current directory:"
@@ -63,5 +70,3 @@ jobs:
         free -h
         echo "Disk space:"
         df -h
-        echo "Last 100 lines of system log:"
-        sudo tail -n 100 /var/log/syslog || true
