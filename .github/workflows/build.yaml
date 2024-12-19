@@ -31,6 +31,9 @@ jobs:
           # Add debug flags at start of script
           sed -i '2i set -x' buildeb/buildeb.sh
           
+          # Modify locale configuration to install required packages first
+          sed -i '/sudo chroot.*locale-gen/i\    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y locales' buildeb/buildeb.sh
+          
           # Add tar installation to chroot setup
           sed -i '/apt-get update/a\    chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y tar gzip' buildeb/buildeb.sh
           
