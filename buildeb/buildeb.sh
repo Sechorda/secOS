@@ -107,7 +107,7 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
-LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
+LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
