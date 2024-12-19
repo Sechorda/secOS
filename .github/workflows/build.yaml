@@ -6,6 +6,9 @@ env:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm
+      options: --privileged
     
     steps:
       - name: Checkout repository
@@ -13,6 +16,9 @@ jobs:
 
       - name: Configure APT
         run: |
+          # Configure essential apt settings first
+          apt-get update
+          apt-get install -y apt-utils ca-certificates
           sudo apt-get update
           # Enable all repositories
           sudo sed -i 's/^deb http/deb [trusted=yes] http/' /etc/apt/sources.list
