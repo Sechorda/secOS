@@ -24,12 +24,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox
+            mtools dosfstools wget unzip virtualbox tar gzip
 
       - name: Remove spinner invocations and add debug
         run: |
           # Add debug flags at start of script
           sed -i '2i set -x' buildeb/buildeb.sh
+          
+          # Add tar installation to chroot setup
+          sed -i '/apt-get update/a\    chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y tar gzip' buildeb/buildeb.sh
+          
+          # Modify Caido installation to show errors
+          sed -i 's#tar -xzf /tmp/caido-cli.tar.gz -C /usr/local/bin >/dev/null 2>&1#echo "Extracting Caido CLI..." \&\& ls -l /tmp/caido-cli.tar.gz \&\& tar -xzvf /tmp/caido-cli.tar.gz -C /usr/local/bin#' buildeb/buildeb.sh
           
           # Remove background process and spinner invocations
           sed -i 's/) \&$/)/g' buildeb/buildeb.sh
@@ -38,15 +44,9 @@ jobs:
           
           # Replace main function with debug version
           sed -i '/^main() {/,/^}/c\main() {\n    set -x\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env || { echo "setup_build_env failed"; exit 1; }\n    bootstrap_debian || { echo "bootstrap_debian failed"; exit 1; }\n    install_kernel_and_packages || { echo "install_kernel_and_packages failed"; exit 1; }\n    install_github_packages || { echo "install_github_packages failed"; exit 1; }\n    configure_system || { echo "configure_system failed"; exit 1; }\n    create_filesystem || { echo "create_filesystem failed"; exit 1; }\n    configure_boot_loaders || { echo "configure_boot_loaders failed"; exit 1; }\n    create_efi_images || { echo "create_efi_images failed"; exit 1; }\n    create_uefi_boot_image || { echo "create_uefi_boot_image failed"; exit 1; }\n    create_iso_and_ova || { echo "create_iso_and_ova failed"; exit 1; }\n}' buildeb/buildeb.sh
-          
-          # Add error tracing
-          echo 'trap '\''echo "Error on line $LINENO"'\'' ERR' >> buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
-
-      - name: Show script content
-        run: cat buildeb/buildeb.sh
 
       - name: Run build script with debug
         run: sudo bash -x ./buildeb/buildeb.sh
