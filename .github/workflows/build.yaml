@@ -21,8 +21,13 @@ jobs:
           apt-get update
           apt-get install -y ca-certificates curl gpg wget
 
-      - name: Install build dependencies
+      - name: Install build dependencies and VirtualBox
         run: |
+          # Add VirtualBox repository
+          wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | gpg --dearmor > /usr/share/keyrings/oracle-virtualbox-2016.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian bookworm contrib" > /etc/apt/sources.list.d/virtualbox.list
+          
+          # Update and install dependencies
           apt-get update
           apt-get install -y \
             apt-utils \
@@ -38,9 +43,12 @@ jobs:
             dosfstools \
             wget \
             unzip \
-            virtualbox \
             curl \
-            gpg
+            gpg \
+            linux-headers-amd64
+          
+          # Install VirtualBox
+          apt-get install -y virtualbox-7.0
 
       - name: Install rclone
         run: |
