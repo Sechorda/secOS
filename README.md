@@ -62,6 +62,17 @@ Features:<br>
 **Start/Stop** EC2 instances<br>
 <br>
 
+# OSINT
+### `osint.py`
+Features:<br>
+<br>
+Query targets:<br>
+**Username**<br>
+**Full Name**<br>
+**Email**<br>
+**Phone Number**s<br>
+<br>
+
 
 ---
 
