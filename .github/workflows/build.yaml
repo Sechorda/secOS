@@ -43,9 +43,9 @@ jobs:
         run: |
           cd buildeb
           sudo chmod +x ./buildeb.sh
-          # Replace clear with printf '\033[2J\033[H'
           sudo sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
-          sudo bash -x ./buildeb.sh
+          # Run the script but only show errors
+          sudo ./buildeb.sh 2>&1 | grep -i 'error\|fail\|fatal'
 
       - name: Upload files to R2
         run: |
