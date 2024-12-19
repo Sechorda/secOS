@@ -1,28 +1,54 @@
-name: Build secOS
+name: Build SecOS
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+    paths:
+      - 'buildeb/**'
+      - 'config/**'
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
+    paths:
+      - 'buildeb/**'
+      - 'config/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TERM: xterm-256color
+      DEBIAN_FRONTEND: noninteractive
+
     steps:
-      - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: Set execute permissions
-        run: |
-          chmod +x buildeb/buildeb.sh
+    - name: Setup sudo
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sudo
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox
+    - name: Modify build script
+      run: |
+        # Create a modified version of the build script
+        sed -i '/^spinner=/d' buildeb/buildeb.sh
+        sed -i '/display_spinner/d' buildeb/buildeb.sh
+        sed -i '/tput/d' buildeb/buildeb.sh
+        sed -i '/print_centered_ascii_art/,/^}/d' buildeb/buildeb.sh
+        sed -i 's/&>/dev/null//' buildeb/buildeb.sh
+        sed -i 's/>/dev/null//' buildeb/buildeb.sh
+        sed -i 's/2>&1//' buildeb/buildeb.sh
+        sed -i '/update_step/d' buildeb/buildeb.sh
+        sed -i '/clear/d' buildeb/buildeb.sh
+        chmod +x buildeb/buildeb.sh
 
-      - name: Build secOS
-        run: |
-          sudo ./buildeb/buildeb.sh
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+        mtools dosfstools wget unzip virtualbox
+
+    - name: Build OS
+      run: cd buildeb && sudo ./buildeb.sh
