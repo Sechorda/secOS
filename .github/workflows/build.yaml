@@ -24,37 +24,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox tar gzip
+            mtools dosfstools wget unzip virtualbox
 
-      - name: Modify script for debugging
-        run: |
-          # Add debug flags
-          sed -i '2i set -x' buildeb/buildeb.sh
-          
-          # Remove all output redirects
-          sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
-          
-          # Remove background process and spinner invocations
-          sed -i 's/) \&$/)/g' buildeb/buildeb.sh
-          sed -i 's/\&\s*$/\n/g' buildeb/buildeb.sh
-          sed -i 's/display_spinner .*//' buildeb/buildeb.sh
-          
-          # Add package installation before configuration
-          sed -i '/configure_system/i\    # Install required packages\n    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get update\n    sudo chroot "${LIVE_BOOT_DIR}/chroot" apt-get install -y locales xdg-utils\n    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/usr/share/applications"\n    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/etc/sudoers.d"\n' buildeb/buildeb.sh
-          
-          # Fix locale generation
-          sed -i 's#ln -sf /usr/share/zoneinfo/#ln -sf /usr/share/zoneinfo/UTC#' buildeb/buildeb.sh
-          
-          # Replace empty timezone with UTC
-          sed -i "s#echo ''#echo 'UTC'#" buildeb/buildeb.sh
-          
-          # Replace main function with debug version
-          sed -i '/^main() {/,/^}/c\main() {\n    set -x\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env || { echo "setup_build_env failed"; exit 1; }\n    bootstrap_debian || { echo "bootstrap_debian failed"; exit 1; }\n    install_kernel_and_packages || { echo "install_kernel_and_packages failed"; exit 1; }\n    install_github_packages || { echo "install_github_packages failed"; exit 1; }\n    configure_system || { echo "configure_system failed"; exit 1; }\n    create_filesystem || { echo "create_filesystem failed"; exit 1; }\n    configure_boot_loaders || { echo "configure_boot_loaders failed"; exit 1; }\n    create_efi_images || { echo "create_efi_images failed"; exit 1; }\n    create_uefi_boot_image || { echo "create_uefi_boot_image failed"; exit 1; }\n    create_iso_and_ova || { echo "create_iso_and_ova failed"; exit 1; }\n}' buildeb/buildeb.sh
+      - name: Remove redirects for debugging
+        run: sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
 
-      - name: Run build script with debug
+      - name: Run build script 
         run: sudo bash -x ./buildeb/buildeb.sh
         env:
           TERM: xterm-256color
