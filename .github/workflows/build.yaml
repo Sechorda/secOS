@@ -32,7 +32,7 @@ jobs:
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V apt-utils debootstrap squashfs-tools xorriso \
         isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip virtualbox
+        mtools dosfstools wget unzip
     - name: Build OS
       run: |
         set -x
