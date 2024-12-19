@@ -16,7 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
-      options: --privileged
+      options: >-
+        --cap-add=SYS_ADMIN 
+        --cap-add=MKNOD
+        --security-opt apparmor=unconfined
+        --device=/dev/loop-control 
+        --device=/dev/loop0
       env:
         TERM: xterm-256color
     steps:
@@ -32,9 +37,37 @@ jobs:
       run: |
         set -x
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V apt-utils debootstrap squashfs-tools xorriso \
-        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -V \
+        build-essential \
+        procps \
+        psmisc \
+        apt-utils \
+        debootstrap \
+        squashfs-tools \
+        xorriso \
+        isolinux \
+        syslinux-efi \
+        grub-pc-bin \
+        grub-efi-amd64-bin \
+        grub-efi-ia32-bin \
+        mtools \
+        dosfstools \
+        wget \
+        unzip \
+        curl \
+        sudo \
+        ca-certificates \
+        device-tree-compiler \
+        vim-common \
+        parted \
+        util-linux \
+        kmod
+    - name: Modify build script
+      run: |
+        set -x
+        cd buildeb
+        # Remove sudo commands as we're running as root
+        sed -i 's/sudo //g' buildeb.sh
     - name: Build OS
       run: |
         set -x
