@@ -39,11 +39,9 @@ jobs:
 
       - name: Run build script
         run: |
-          ls -la
           cd buildeb
-          ls -la
           sudo chmod +x ./buildeb.sh
-          sudo ./buildeb.sh
+          sudo bash -x ./buildeb.sh
 
       - name: Upload files to R2
         run: |
