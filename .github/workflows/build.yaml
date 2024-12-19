@@ -18,12 +18,6 @@ jobs:
           apt-get update
           apt-get install -y debootstrap sudo
 
-      - name: Setup User Environment
-        run: |
-          useradd -m -s /bin/bash Sechorda
-          usermod -aG sudo Sechorda
-          echo "Sechorda ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
       - name: Modify Build Script
         run: |
           # Add debug mode and remove interactive elements
@@ -46,36 +40,4 @@ jobs:
             gsub(/ > \/dev\/null 2>&1/, "")
             gsub(/ 2> \/dev\/null/, "")
             gsub(/ > \/dev\/null/, "")
-            gsub(/exec 2>\/dev\/null/, "")
-            gsub(/exec [0-9]*>&[0-9]*/, "")
-            print
-          }
-          ' buildeb/buildeb.sh > buildeb/buildeb_ci.sh
-          chmod +x buildeb/buildeb_ci.sh
-          chown Sechorda:Sechorda buildeb/buildeb_ci.sh
-
-      - name: Run Build Script
-        env:
-          TERM: xterm-256color
-          DEBIAN_FRONTEND: noninteractive
-          HOME: /home/Sechorda
-          USER: Sechorda
-          USERNAME: Sechorda
-          LOGNAME: Sechorda
-        run: |
-          # Mount special filesystems needed for chroot
-          mount none -t proc /proc
-          mount none -t sysfs /sys
-          mount none -t devpts /dev/pts
-          
-          # Run as Sechorda user with proper environment
-          cd $GITHUB_WORKSPACE
-          sudo -E -u Sechorda ./buildeb/buildeb_ci.sh
-
-      - name: Cleanup
-        if: always()
-        run: |
-          # Cleanup mounts
-          umount /proc || true
-          umount /sys || true
-          umount /dev/pts || true
+            gsub(/exec 2>\/dev\/
