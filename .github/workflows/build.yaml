@@ -38,9 +38,13 @@ jobs:
           EOF
 
       - name: Run build script
+        env:
+          TERM: xterm-256color
         run: |
           cd buildeb
           sudo chmod +x ./buildeb.sh
+          # Replace clear with printf '\033[2J\033[H'
+          sudo sed -i 's/clear/printf "\\033[2J\\033[H"/' ./buildeb.sh
           sudo bash -x ./buildeb.sh
 
       - name: Upload files to R2
