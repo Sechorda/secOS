@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm
-      options: --privileged
 
     steps:
       - name: Checkout repository
