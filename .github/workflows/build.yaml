@@ -14,6 +14,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            apt-utils \
+            debootstrap \
+            squashfs-tools \
+            xorriso \
+            isolinux \
+            syslinux-efi \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            grub-efi-ia32-bin \
+            mtools \
+            dosfstools \
+            wget \
+            unzip \
+            virtualbox \
+            curl \
+            gpg
+
       - name: Install rclone
         run: |
           curl https://rclone.org/install.sh | sudo bash
