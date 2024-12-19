@@ -26,13 +26,9 @@ jobs:
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox
 
-      - name: Remove spinner functions
+      - name: Replace main function
         run: |
-          sed -i '/ *spinner=(/,/^}/d' buildeb/buildeb.sh
-          sed -i '/display_spinner/d' buildeb/buildeb.sh
-          sed -i 's/) &/)/g' buildeb/buildeb.sh
-          sed -i '/^[[:space:]]*local delay=0.1/d' buildeb/buildeb.sh
-          sed -i '/tput cup/d' buildeb/buildeb.sh
+          sed -i '/^main() {/,/^}/c\main() {\n    if [ -d "${LIVE_BOOT_DIR}" ]; then\n        sudo rm -rf "${LIVE_BOOT_DIR}"\n    fi\n    setup_build_env\n    bootstrap_debian\n    install_kernel_and_packages\n    install_github_packages\n    configure_system\n    create_filesystem\n    configure_boot_loaders\n    create_efi_images\n    create_uefi_boot_image\n    create_iso_and_ova\n}' buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
