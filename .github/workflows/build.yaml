@@ -1,79 +1,44 @@
-name: Build secOS
+name: Test Debootstrap
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  build:
+  test-debootstrap:
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/vscode/devcontainers/universal:linux
+      image: ubuntu:latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Basic Setup
+        run: |
+          apt-get update
+          apt-get install -y debootstrap sudo
 
-      - name: Install required packages
+      - name: System Info
         run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-            mtools dosfstools wget unzip virtualbox curl
+          echo "Current date: $(date)"
+          echo "Current user: $(whoami)"
+          echo "Current directory: $(pwd)"
+          echo "System information:"
+          uname -a
 
-      - name: Set up build environment
+      - name: Test Debootstrap
         run: |
-          export TERM=xterm-256color
-          export DEBIAN_FRONTEND=noninteractive
-          chmod +x buildeb/buildeb.sh
-          # Set up user similar to Codespaces
-          sudo useradd -m -s /bin/bash Sechorda
-          sudo usermod -aG sudo Sechorda
-          echo "Sechorda ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/Sechorda
+          echo "Starting debootstrap test..."
+          
+          # Create test directory
+          mkdir -p /tmp/test-chroot
+          
+          # Run debootstrap
+          debootstrap --arch=amd64 --variant=minbase stable /tmp/test-chroot http://ftp.us.debian.org/debian/
+          
+          echo "Debootstrap completed. Contents of chroot:"
+          ls -la /tmp/test-chroot
 
-      - name: Run build script
-        env:
-          TERM: xterm-256color
-          DEBIAN_FRONTEND: noninteractive
-          USER: Sechorda
+      - name: Test Chroot
         run: |
-          sudo -E -u Sechorda ./buildeb/buildeb.sh
-
-      - name: Install rclone
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
+          # Test basic chroot command
+          chroot /tmp/test-chroot /bin/bash -c "echo 'Hello from chroot'"
           
-      - name: Configure rclone
-        run: |
-          mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf << EOF
-          [r2]
-          type = s3
-          provider = Cloudflare
-          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
-          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          endpoint = ${{ secrets.R2_ENDPOINT }}
-          acl = private
-          EOF
-          
-      - name: Upload artifacts to Cloudflare R2
-        run: |
-          # List files for debugging
-          ls -la *.iso *.ova || true
-          
-          # Upload .iso file if it exists
-          if [ -f "secOS.iso" ]; then
-            rclone copy secOS.iso r2:${{ secrets.R2_BUCKET_NAME }}/
-            echo "Uploaded secOS.iso to R2"
-          else
-            echo "secOS.iso not found"
-          fi
-          
-          # Upload .ova file if it exists
-          if [ -f "secOS.ova" ]; then
-            rclone copy secOS.ova r2:${{ secrets.R2_BUCKET_NAME }}/
-            echo "Uploaded secOS.ova to R2"
-          else
-            echo "secOS.ova not found"
-          fi
+          # Test more commands in chroot
+          chroot /tmp/test-chroot /bin/bash -c "cat /etc/debian_version"
