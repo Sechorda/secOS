@@ -26,31 +26,31 @@ jobs:
             isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
             mtools dosfstools wget unzip virtualbox
 
-      - name: Clean script
+      - name: Clean spinner functions
         run: |
-          # Remove redirects
+          sed -i '/ *spinner=(/,/^}/d' buildeb/buildeb.sh
+          sed -i '/display_spinner/d' buildeb/buildeb.sh
+          sed -i 's/) &/)/g' buildeb/buildeb.sh
+          sed -i '/^[[:space:]]*local delay=0.1/d' buildeb/buildeb.sh
+          sed -i '/tput cup/d' buildeb/buildeb.sh
           sed -i 's/ *>[^ ]* 2>&1//g' buildeb/buildeb.sh
-          # Remove update_step calls
-          sed -i '/update_step.*completed/d' buildeb/buildeb.sh
-          # Remove tput commands
-          sed -i '/tput cup.*/d' buildeb/buildeb.sh
-          # Remove spinner logic
-          sed -i '/spinner=/,/)/d' buildeb/buildeb.sh
-          sed -i '/display_spinner.*/d' buildeb/buildeb.sh
 
       - name: Make build script executable
         run: chmod +x buildeb/buildeb.sh
 
-      - name: Run build script 
-        run: sudo bash -x ./buildeb/buildeb.sh
+      - name: Run build script
+        run: sudo ./buildeb/buildeb.sh
         env:
           TERM: xterm-256color
 
-      - name: Upload build logs
-        if: always()
+      - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: |
-            /tmp/LIVE_BOOT/**/*.log
-            /var/log/apt/*.log
+          name: secOS-iso
+          path: secOS.iso
+
+      - name: Upload OVA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: secOS-ova
+          path: secOS.ova
