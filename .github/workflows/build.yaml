@@ -28,17 +28,17 @@ jobs:
 
       - name: Remove spinner functions
         run: |
-          sed -i '/ *spinner=(/,/^}/d' build.sh
-          sed -i '/display_spinner/d' build.sh
-          sed -i 's/) &/)/g' build.sh
-          sed -i '/^[[:space:]]*local delay=0.1/d' build.sh
-          sed -i '/tput cup/d' build.sh
+          sed -i '/ *spinner=(/,/^}/d' buildeb/buildeb.sh
+          sed -i '/display_spinner/d' buildeb/buildeb.sh
+          sed -i 's/) &/)/g' buildeb/buildeb.sh
+          sed -i '/^[[:space:]]*local delay=0.1/d' buildeb/buildeb.sh
+          sed -i '/tput cup/d' buildeb/buildeb.sh
 
       - name: Make build script executable
-        run: chmod +x build.sh
+        run: chmod +x buildeb/buildeb.sh
 
       - name: Run build script
-        run: sudo ./build.sh
+        run: sudo ./buildeb/buildeb.sh
         env:
           TERM: xterm-256color
 
