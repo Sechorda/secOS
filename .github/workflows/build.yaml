@@ -1,143 +1,44 @@
 name: Build and Upload secOS
 on:
-  workflow_dispatch:
-env:
-  DEBIAN_FRONTEND: noninteractive
-  DOCKER_BUILDKIT: 1
-jobs:
-  build-and-upload:
-    runs-on: ubuntu-latest
-    container:
-      image: debian:bookworm
-      options: --privileged --init
-    steps:
-      - name: System setup
-        run: |
-          # Clear existing sources
-          rm -f /etc/apt/sources.list.d/*.sources
-          
-          # Setup proper sources
-          cat > /etc/apt/sources.list << EOF
-          deb http://deb.debian.org/debian bookworm main contrib non-free-firmware
-          deb http://security.debian.org/debian-security bookworm-security main contrib non-free-firmware
-          deb http://deb.debian.org/debian bookworm-updates main contrib non-free-firmware
-          EOF
-          
-          # Setup proper system environment
-          apt-get update
-          apt-get install -y \
-            systemd \
-            procps \
-            init \
-            dbus \
-            udev \
-            kmod \
-            sudo
-          # Initialize system services
-          dbus-uuidgen > /etc/machine-id
-          mkdir -p /run/lock
-          export container=docker
-          mount proc /proc -t proc || true
+  push:
+    branches:
+      - main  # or your default branch
+  workflow_dispatch:  # allows manual triggering
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          
-      - name: Install build requirements
-        run: |
-          # Update and install required packages
-          apt-get update
-          apt-get install -y \
-            build-essential \
-            debootstrap \
-            squashfs-tools \
-            xorriso \
-            isolinux \
-            syslinux-efi \
-            grub-pc-bin \
-            grub-efi-amd64-bin \
-            grub-efi-ia32-bin \
-            mtools \
-            dosfstools \
-            ca-certificates \
-            curl \
-            wget \
-            unzip \
-            gpg \
-            apt-utils \
-            linux-headers-amd64 \
-            acl \
-            locales \
-            sudo \
-            git \
-            golang-go \
-            python3 \
-            python3-pip \
-            pipx \
-            e2fsprogs \
-            btrfs-progs \
-            xfsprogs \
-            grub-efi-amd64
-          # Configure locales properly
-          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-          locale-gen
-          echo "LANG=en_US.UTF-8" > /etc/default/locale
-          . /etc/default/locale
 
-      - name: Prepare directories
-        run: |
-          mkdir -p /__w/secOS/secOS/buildeb/LIVE_BOOT/chroot
-          mkdir -p /__w/secOS/secOS/buildeb/LIVE_BOOT/staging/boot/grub/x86_64-efi
-          chown -R root:root /__w/secOS/secOS/buildeb
-          chmod -R 755 /__w/secOS/secOS/buildeb
-
-      - name: Prepare build script
-        run: |
-          cd buildeb
-          # Remove sudo commands from build script
-          sed -i \
-            -e 's/sudo //g' \
-            -e 's/sudo -E //g' \
-            -e 's/sudo -H //g' \
-            -e 's/sudo -u //g' \
-            -e 's/sudo chroot/chroot/g' \
-            -e 's/clear/printf "\\033[2J\\033[H"/' \
-            buildeb.sh
-          
-          chmod +x buildeb.sh
+      - name: Make build script executable
+        run: chmod +x buildeb/buildeb.sh
 
       - name: Run build script
-        env:
-          TERM: xterm-256color
-          PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          HOME: /root
+        run: ./buildeb/buildeb.sh
+        
+      - name: Install rclone
         run: |
-          cd buildeb
-          ./buildeb.sh
-
-      - name: Upload artifacts
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-        run: |
-          # Install and configure rclone
-          curl https://rclone.org/install.sh | bash
-          mkdir -p ~/.config/rclone
+          curl https://rclone.org/install.sh | sudo bash
           
+      - name: Configure rclone
+        run: |
+          mkdir -p ~/.config/rclone
           cat > ~/.config/rclone/rclone.conf << EOF
           [r2]
           type = s3
           provider = Cloudflare
-          access_key_id = ${R2_ACCESS_KEY_ID}
-          secret_access_key = ${R2_SECRET_ACCESS_KEY}
-          endpoint = https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+          access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          endpoint = ${{ secrets.R2_ENDPOINT }}
           acl = private
-          bucket_name = ${R2_BUCKET_NAME}
           EOF
           
-          cd buildeb
-          rclone copy secOS.iso r2:${R2_BUCKET_NAME} || true
-          rclone copy secOS.ova r2:${R2_BUCKET_NAME} || true
+      - name: Upload to Cloudflare R2
+        run: |
+          # Upload .iso file
+          rclone copy ./*.iso r2:${{ secrets.R2_BUCKET_NAME }}/
+          # Upload .ova file
+          rclone copy ./*.ova r2:${{ secrets.R2_BUCKET_NAME }}/
