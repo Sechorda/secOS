@@ -74,7 +74,7 @@ Query targets:<br>
 **Username**<br>
 **Full Name**<br>
 **Email**<br>
-**Phone Number**s<br>
+**Phone Number**<br>
 <br>
 
 
