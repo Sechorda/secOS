@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Remove & spinner calls
+      run: |
+        sed -i 's/\& spinner//g' buildeb/buildeb.sh
+
+    - name: Setup permissions
+      run: |
+        sudo chmod +x buildeb/buildeb.sh
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+            isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+            mtools dosfstools wget unzip virtualbox curl gpg tar python3 python3-pip pipx git golang-go make
+
+    - name: Setup Debian 12 environment
+      run: |
+        sudo debootstrap --variant=minbase stable /debian http://deb.debian.org/debian
+
+    - name: Run buildeb script in chroot
+      run: |
+        sudo chroot /debian /bin/bash -c "cd /github/workspace && ./buildeb/buildeb.sh"
