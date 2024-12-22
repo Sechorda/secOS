@@ -35,6 +35,10 @@ jobs:
       run: |
         sudo debootstrap --variant=minbase stable /debian http://deb.debian.org/debian
 
+    - name: Install additional packages in chroot
+      run: |
+        sudo chroot /debian /bin/bash -c "apt-get update && apt-get install -y sudo procps"
+
     - name: Copy repository to chroot environment
       run: |
         sudo mkdir -p /debian/github/workspace
