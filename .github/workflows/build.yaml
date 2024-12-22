@@ -37,6 +37,7 @@ jobs:
 
     - name: Install additional packages in chroot
       run: |
+        sudo mount -t proc proc /debian/proc
         sudo chroot /debian /bin/bash -c "apt-get update && apt-get install -y sudo procps"
 
     - name: Copy repository to chroot environment
@@ -44,9 +45,9 @@ jobs:
         sudo mkdir -p /debian/github/workspace
         sudo cp -r $GITHUB_WORKSPACE/* /debian/github/workspace/
 
-    - name: Mount /proc filesystem in chroot
+    - name: Ensure /tmp/LIVE_BOOT/chroot directory exists in chroot
       run: |
-        sudo mount -t proc proc /debian/proc
+        sudo chroot /debian /bin/bash -c "mkdir -p /tmp/LIVE_BOOT/chroot"
 
     - name: Run buildeb script in chroot
       run: |
