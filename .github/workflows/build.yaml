@@ -44,6 +44,15 @@ jobs:
         sudo mkdir -p /debian/github/workspace
         sudo cp -r $GITHUB_WORKSPACE/* /debian/github/workspace/
 
+    - name: Mount /proc filesystem in chroot
+      run: |
+        sudo mount -t proc proc /debian/proc
+
     - name: Run buildeb script in chroot
       run: |
         sudo chroot /debian /bin/bash -c "export TERM=xterm-color && cd /github/workspace && ./buildeb/buildeb.sh"
+
+    - name: Unmount /proc filesystem in chroot
+      if: always()
+      run: |
+        sudo umount /debian/proc
