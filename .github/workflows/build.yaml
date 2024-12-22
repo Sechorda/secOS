@@ -35,6 +35,11 @@ jobs:
       run: |
         sudo debootstrap --variant=minbase stable /debian http://deb.debian.org/debian
 
+    - name: Copy repository to chroot environment
+      run: |
+        sudo mkdir -p /debian/github/workspace
+        sudo cp -r $GITHUB_WORKSPACE/* /debian/github/workspace/
+
     - name: Run buildeb script in chroot
       run: |
         sudo chroot /debian /bin/bash -c "cd /github/workspace && ./buildeb/buildeb.sh"
