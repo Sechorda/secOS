@@ -47,7 +47,11 @@ jobs:
 
     - name: Ensure /tmp/LIVE_BOOT/chroot directory exists in chroot
       run: |
-        sudo chroot /debian /bin/bash -c "mkdir -p /tmp/LIVE_BOOT/chroot"
+        sudo chroot /debian /bin/bash -c "mkdir -p /tmp/LIVE_BOOT && mkdir -p /tmp/LIVE_BOOT/chroot"
+
+    - name: Mount /proc filesystem in chroot
+      run: |
+        sudo mount --bind /proc /debian/proc
 
     - name: Run buildeb script in chroot
       run: |
