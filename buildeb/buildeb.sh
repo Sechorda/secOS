@@ -396,72 +396,20 @@ create_uefi_boot_image() {
 }
 
 create_iso() {
-    (
-        # VM Configuration
-        local VM_NAME="secOS_VM"
-        local VM_MEMORY=4096
-        local VM_CPUS=4
-        local VM_HDD_SIZE=20000
-        local OUTPUT_OVA="secOS.ova"
+    echo "Creating ISO and VMDK..."
+    # Create ISO
+    xorriso -as mkisofs -iso-level 3 -o "${ISO_NAME}" -full-iso9660-filenames \
+        -volid "SECOS" --mbr-force-bootable -partition_offset 16 \
+        -joliet -joliet-long -rational-rock -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+        -eltorito-boot isolinux/isolinux.bin -no-emul-boot -boot-load-size 4 -boot-info-table \
+        --eltorito-catalog isolinux/isolinux.cat \
+        -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -isohybrid-gpt-basdat \
+        -append_partition 2 0xef "${LIVE_BOOT_DIR}/staging/efiboot.img" \
+        "${LIVE_BOOT_DIR}/staging"
 
-        # Create ISO
-        xorriso -as mkisofs -iso-level 3 -o "${ISO_NAME}" -full-iso9660-filenames \
-            -volid "SECOS" --mbr-force-bootable -partition_offset 16 \
-            -joliet -joliet-long -rational-rock -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-            -eltorito-boot isolinux/isolinux.bin -no-emul-boot -boot-load-size 4 -boot-info-table \
-            --eltorito-catalog isolinux/isolinux.cat \
-            -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -isohybrid-gpt-basdat \
-            -append_partition 2 0xef "${LIVE_BOOT_DIR}/staging/efiboot.img" \
-            "${LIVE_BOOT_DIR}/staging" &>/dev/null
-
-        # Create OVA if VBoxManage is available
-        if command -v VBoxManage >/dev/null 2>&1; then
-            # Clean up any existing VM
-            if VBoxManage showvminfo "$VM_NAME" >/dev/null 2>&1; then
-                VBoxManage unregistervm "$VM_NAME" --delete >/dev/null 2>&1
-            fi
-
-            # Create VM
-            VBoxManage createvm --name "$VM_NAME" --ostype Debian_64 --register >/dev/null 2>&1
-
-            # Configure VM settings
-            VBoxManage modifyvm "$VM_NAME" --memory "$VM_MEMORY" --cpus "$VM_CPUS" \
-                --firmware efi \
-                --chipset piix3 \
-                --acpi on \
-                --ioapic on \
-                --x2apic on \
-                --apic on \
-                --pae off \
-                --longmode on \
-                --rtcuseutc on \
-                --graphicscontroller vmsvga \
-                --vram 16 >/dev/null 2>&1
-
-            # Set boot order
-            VBoxManage modifyvm "$VM_NAME" --boot1 dvd --boot2 none --boot3 none --boot4 none >/dev/null 2>&1
-            VBoxManage modifyvm "$VM_NAME" --firmware-boot-menu messageandmenu >/dev/null 2>&1
-
-            # Configure storage controllers
-            VBoxManage storagectl "$VM_NAME" --name "IDE" --add ide --controller PIIX4 --bootable on >/dev/null 2>&1
-            VBoxManage storagectl "$VM_NAME" --name "SATA" --add sata --controller IntelAhci --bootable on >/dev/null 2>&1
-
-            # Attach ISO using absolute path
-            local ISO_ABSOLUTE_PATH=$(realpath "${ISO_NAME}")
-            VBoxManage storageattach "$VM_NAME" --storagectl "IDE" --port 0 --device 0 \
-                --type dvddrive --medium "$ISO_ABSOLUTE_PATH" >/dev/null 2>&1
-
-            # Verify configuration
-            VBoxManage showvminfo "$VM_NAME" | grep -A 5 "Storage Controller" >/dev/null 2>&1
-            VBoxManage showvminfo "$VM_NAME" | grep "Boot Device" >/dev/null 2>&1
-
-            # Export VM to OVA
-            VBoxManage export "$VM_NAME" --output "$OUTPUT_OVA" --options=nomacs,manifest,iso >/dev/null 2>&1
-
-            # Clean up VM after export
-            VBoxManage unregistervm "$VM_NAME" --delete >/dev/null 2>&1
-        fi
-    )
+    # Convert ISO to VMDK using QEMU
+    local VMDK_NAME="secOS.vmdk"
+    qemu-img convert -f raw -O vmdk "${ISO_NAME}" "${VMDK_NAME}"
 }
     
 main() {
