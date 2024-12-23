@@ -271,7 +271,7 @@ install_github_packages() {
 configure_system() {
     echo "Configuring system..."
     local system_conf="${PWD}/config/system/system.conf"
-    source "${system_conf}"
+    source "${system_conf}" >/dev/null 2>&1
 
     # Set hostname
     echo "${HOSTNAME}" | sudo tee "${LIVE_BOOT_DIR}/chroot/etc/hostname"
@@ -396,105 +396,73 @@ create_uefi_boot_image() {
 }
 
 create_iso() {
-    echo "Creating ISO..."
-    xorriso -as mkisofs -iso-level 3 -o "${ISO_NAME}" -full-iso9660-filenames \
-        -volid "SECOS" --mbr-force-bootable -partition_offset 16 \
-        -joliet -joliet-long -rational-rock -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-        -eltorito-boot isolinux/isolinux.bin -no-emul-boot -boot-load-size 4 -boot-info-table \
-        --eltorito-catalog isolinux/isolinux.cat \
-        -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -isohybrid-gpt-basdat \
-        -append_partition 2 0xef "${LIVE_BOOT_DIR}/staging/efiboot.img" \
-        "${LIVE_BOOT_DIR}/staging" >/dev/null 2>&1
+    (
+        # VM Configuration
+        local VM_NAME="secOS_VM"
+        local VM_MEMORY=4096
+        local VM_CPUS=4
+        local VM_HDD_SIZE=20000
+        local OUTPUT_OVA="secOS.ova"
 
-    echo "Creating virtual disk and converting to OVA..."
-    local VM_NAME="secOS"
-    local DISK_SIZE="20G"
-    local RAM_SIZE="4096"
-    local CPU_COUNT="2"
+        # Create ISO
+        xorriso -as mkisofs -iso-level 3 -o "${ISO_NAME}" -full-iso9660-filenames \
+            -volid "SECOS" --mbr-force-bootable -partition_offset 16 \
+            -joliet -joliet-long -rational-rock -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+            -eltorito-boot isolinux/isolinux.bin -no-emul-boot -boot-load-size 4 -boot-info-table \
+            --eltorito-catalog isolinux/isolinux.cat \
+            -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -isohybrid-gpt-basdat \
+            -append_partition 2 0xef "${LIVE_BOOT_DIR}/staging/efiboot.img" \
+            "${LIVE_BOOT_DIR}/staging" &>/dev/null
 
-    # Create and configure virtual disk
-    qemu-img create -f qcow2 "${VM_NAME}.qcow2" "${DISK_SIZE}" >/dev/null 2>&1
+        # Create OVA if VBoxManage is available
+        if command -v VBoxManage >/dev/null 2>&1; then
+            # Clean up any existing VM
+            if VBoxManage showvminfo "$VM_NAME" >/dev/null 2>&1; then
+                VBoxManage unregistervm "$VM_NAME" --delete >/dev/null 2>&1
+            fi
 
-    # Install OS
-    qemu-system-x86_64 \
-        -name "${VM_NAME}" \
-        -machine type=q35,accel=kvm:tcg \
-        -cpu host \
-        -smp "${CPU_COUNT}" \
-        -m "${RAM_SIZE}" \
-        -drive file="${VM_NAME}.qcow2",format=qcow2 \
-        -drive file="${ISO_NAME}",media=cdrom \
-        -boot d \
-        -display none \
-        -device virtio-net-pci,netdev=net0 \
-        -netdev user,id=net0 \
-        -bios /usr/share/ovmf/OVMF.fd \
-        -serial stdio &
+            # Create VM
+            VBoxManage createvm --name "$VM_NAME" --ostype Debian_64 --register >/dev/null 2>&1
 
-    # Wait for VM to complete installation
-    sleep 300
+            # Configure VM settings
+            VBoxManage modifyvm "$VM_NAME" --memory "$VM_MEMORY" --cpus "$VM_CPUS" \
+                --firmware efi \
+                --chipset piix3 \
+                --acpi on \
+                --ioapic on \
+                --x2apic on \
+                --apic on \
+                --pae off \
+                --longmode on \
+                --rtcuseutc on \
+                --graphicscontroller vmsvga \
+                --vram 16 >/dev/null 2>&1
 
-    # Convert to VMDK
-    qemu-img convert -O vmdk "${VM_NAME}.qcow2" "${VM_NAME}.vmdk" >/dev/null 2>&1
+            # Set boot order
+            VBoxManage modifyvm "$VM_NAME" --boot1 dvd --boot2 none --boot3 none --boot4 none >/dev/null 2>&1
+            VBoxManage modifyvm "$VM_NAME" --firmware-boot-menu messageandmenu >/dev/null 2>&1
 
-    # Create OVF file
-    cat > "${VM_NAME}.ovf" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData">
-  <References>
-    <File ovf:href="${VM_NAME}.vmdk" ovf:id="file1"/>
-  </References>
-  <DiskSection>
-    <Info>Virtual disk information</Info>
-    <Disk ovf:capacity="${DISK_SIZE}" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
-  </DiskSection>
-  <NetworkSection>
-    <Info>Network configuration</Info>
-    <Network ovf:name="VM Network">
-      <Description>The VM Network network</Description>
-    </Network>
-  </NetworkSection>
-  <VirtualSystem ovf:id="${VM_NAME}">
-    <Info>A virtual machine</Info>
-    <Name>${VM_NAME}</Name>
-    <OperatingSystemSection ovf:id="94">
-      <Info>The kind of installed guest operating system</Info>
-      <Description>Debian</Description>
-    </OperatingSystemSection>
-    <VirtualHardwareSection>
-      <Info>Virtual hardware requirements</Info>
-      <System>
-        <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
-        <vssd:InstanceID>0</vssd:InstanceID>
-        <vssd:VirtualSystemIdentifier>${VM_NAME}</vssd:VirtualSystemIdentifier>
-        <vssd:VirtualSystemType>vmx-07</vssd:VirtualSystemType>
-      </System>
-      <Item>
-        <rasd:ElementName>CPU</rasd:ElementName>
-        <rasd:InstanceID>1</rasd:InstanceID>
-        <rasd:ResourceType>3</rasd:ResourceType>
-        <rasd:VirtualQuantity>${CPU_COUNT}</rasd:VirtualQuantity>
-      </Item>
-      <Item>
-        <rasd:ElementName>Memory</rasd:ElementName>
-        <rasd:InstanceID>2</rasd:InstanceID>
-        <rasd:ResourceType>4</rasd:ResourceType>
-        <rasd:VirtualQuantity>${RAM_SIZE}</rasd:VirtualQuantity>
-      </Item>
-    </VirtualHardwareSection>
-  </VirtualSystem>
-</Envelope>
-EOF
+            # Configure storage controllers
+            VBoxManage storagectl "$VM_NAME" --name "IDE" --add ide --controller PIIX4 --bootable on >/dev/null 2>&1
+            VBoxManage storagectl "$VM_NAME" --name "SATA" --add sata --controller IntelAhci --bootable on >/dev/null 2>&1
 
-    # Create OVA
-    tar -cf "${VM_NAME}.ova" "${VM_NAME}.ovf" "${VM_NAME}.vmdk"
+            # Attach ISO using absolute path
+            local ISO_ABSOLUTE_PATH=$(realpath "${ISO_NAME}")
+            VBoxManage storageattach "$VM_NAME" --storagectl "IDE" --port 0 --device 0 \
+                --type dvddrive --medium "$ISO_ABSOLUTE_PATH" >/dev/null 2>&1
+
+            # Verify configuration
+            VBoxManage showvminfo "$VM_NAME" | grep -A 5 "Storage Controller" >/dev/null 2>&1
+            VBoxManage showvminfo "$VM_NAME" | grep "Boot Device" >/dev/null 2>&1
+
+            # Export VM to OVA
+            VBoxManage export "$VM_NAME" --output "$OUTPUT_OVA" --options=nomacs,manifest,iso >/dev/null 2>&1
+
+            # Clean up VM after export
+            VBoxManage unregistervm "$VM_NAME" --delete >/dev/null 2>&1
+        fi
+    )
     
-    # Cleanup
-    rm "${VM_NAME}.ovf" "${VM_NAME}.vmdk" "${VM_NAME}.qcow2"
-    
-    echo "Build artifacts created: ${ISO_NAME} and ${VM_NAME}.ova"
-}
-
 main() {
     # Check and remove existing temporary directory if it exists
     if [ -d "${LIVE_BOOT_DIR}" ]; then
