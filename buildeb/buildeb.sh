@@ -405,6 +405,94 @@ create_iso() {
         -eltorito-alt-boot -e --interval:appended_partition_2:all:: -no-emul-boot -isohybrid-gpt-basdat \
         -append_partition 2 0xef "${LIVE_BOOT_DIR}/staging/efiboot.img" \
         "${LIVE_BOOT_DIR}/staging" >/dev/null 2>&1
+
+    echo "Creating virtual disk and converting to OVA..."
+    local VM_NAME="secOS"
+    local DISK_SIZE="20G"
+    local RAM_SIZE="4096"
+    local CPU_COUNT="2"
+
+    # Create and configure virtual disk
+    qemu-img create -f qcow2 "${VM_NAME}.qcow2" "${DISK_SIZE}" >/dev/null 2>&1
+
+    # Install OS
+    qemu-system-x86_64 \
+        -name "${VM_NAME}" \
+        -machine type=q35,accel=kvm:tcg \
+        -cpu host \
+        -smp "${CPU_COUNT}" \
+        -m "${RAM_SIZE}" \
+        -drive file="${VM_NAME}.qcow2",format=qcow2 \
+        -drive file="${ISO_NAME}",media=cdrom \
+        -boot d \
+        -display none \
+        -device virtio-net-pci,netdev=net0 \
+        -netdev user,id=net0 \
+        -bios /usr/share/ovmf/OVMF.fd \
+        -serial stdio &
+
+    # Wait for VM to complete installation
+    sleep 300
+
+    # Convert to VMDK
+    qemu-img convert -O vmdk "${VM_NAME}.qcow2" "${VM_NAME}.vmdk" >/dev/null 2>&1
+
+    # Create OVF file
+    cat > "${VM_NAME}.ovf" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData">
+  <References>
+    <File ovf:href="${VM_NAME}.vmdk" ovf:id="file1"/>
+  </References>
+  <DiskSection>
+    <Info>Virtual disk information</Info>
+    <Disk ovf:capacity="${DISK_SIZE}" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
+  </DiskSection>
+  <NetworkSection>
+    <Info>Network configuration</Info>
+    <Network ovf:name="VM Network">
+      <Description>The VM Network network</Description>
+    </Network>
+  </NetworkSection>
+  <VirtualSystem ovf:id="${VM_NAME}">
+    <Info>A virtual machine</Info>
+    <Name>${VM_NAME}</Name>
+    <OperatingSystemSection ovf:id="94">
+      <Info>The kind of installed guest operating system</Info>
+      <Description>Debian</Description>
+    </OperatingSystemSection>
+    <VirtualHardwareSection>
+      <Info>Virtual hardware requirements</Info>
+      <System>
+        <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
+        <vssd:InstanceID>0</vssd:InstanceID>
+        <vssd:VirtualSystemIdentifier>${VM_NAME}</vssd:VirtualSystemIdentifier>
+        <vssd:VirtualSystemType>vmx-07</vssd:VirtualSystemType>
+      </System>
+      <Item>
+        <rasd:ElementName>CPU</rasd:ElementName>
+        <rasd:InstanceID>1</rasd:InstanceID>
+        <rasd:ResourceType>3</rasd:ResourceType>
+        <rasd:VirtualQuantity>${CPU_COUNT}</rasd:VirtualQuantity>
+      </Item>
+      <Item>
+        <rasd:ElementName>Memory</rasd:ElementName>
+        <rasd:InstanceID>2</rasd:InstanceID>
+        <rasd:ResourceType>4</rasd:ResourceType>
+        <rasd:VirtualQuantity>${RAM_SIZE}</rasd:VirtualQuantity>
+      </Item>
+    </VirtualHardwareSection>
+  </VirtualSystem>
+</Envelope>
+EOF
+
+    # Create OVA
+    tar -cf "${VM_NAME}.ova" "${VM_NAME}.ovf" "${VM_NAME}.vmdk"
+    
+    # Cleanup
+    rm "${VM_NAME}.ovf" "${VM_NAME}.vmdk" "${VM_NAME}.qcow2"
+    
+    echo "Build artifacts created: ${ISO_NAME} and ${VM_NAME}.ova"
 }
 
 main() {
@@ -427,7 +515,6 @@ main() {
     create_iso
     
     echo "Build complete!"
-    echo "secOS ISO created at ./${ISO_NAME}"
 }
 
 main
