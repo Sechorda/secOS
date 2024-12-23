@@ -19,6 +19,7 @@ jobs:
         sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
           isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
           mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
+        curl https://rclone.org/install.sh | sudo bash
 
     - name: Build secOS
       run: |
@@ -34,7 +35,6 @@ jobs:
         R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
       run: |
-        curl https://rclone.org/install.sh | sudo bash
         mkdir -p ~/.config/rclone
         cat > ~/.config/rclone/rclone.conf << EOF
         [r2]
