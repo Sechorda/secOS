@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-secOS:
     runs-on: ubuntu-latest
     env:
       TERM: xterm-256color
@@ -26,7 +26,7 @@ jobs:
           isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
           mtools dosfstools wget unzip git curl
 
-    - name: Building secOS
+    - name: Build secOS
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
         chmod +x buildeb/buildeb.sh
