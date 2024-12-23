@@ -1,0 +1,53 @@
+name: Build SecOS ISO
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TERM: xterm-256color
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+          isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+          mtools dosfstools wget unzip git
+
+    - name: Set script permissions
+      run: |
+        chmod +x buildeb/buildeb.sh
+        
+    - name: Mount /proc and Build ISO
+      run: |
+        sudo mount -t proc proc /proc || echo "/proc already mounted"
+        cd buildeb
+        sudo ./buildeb.sh
+        
+    - name: Verify ISO Creation
+      run: |
+        if [ ! -f buildeb/secOS.iso ]; then
+          echo "Error: secOS.iso was not created!"
+          exit 1
+        fi
+        echo "ISO file created successfully"
+        ls -lh buildeb/secOS.iso
+
+    - name: Upload ISO artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: secOS-iso
+        path: buildeb/secOS.iso
+        retention-days: 7
