@@ -24,30 +24,31 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
           isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-          mtools dosfstools wget unzip git
+          mtools dosfstools wget unzip git curl
 
-    - name: Set script permissions
-      run: |
-        chmod +x buildeb/buildeb.sh
-        
-    - name: Mount /proc and Build ISO
+    - name: Building secOS
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
+        chmod +x buildeb/buildeb.sh
         cd buildeb
         sudo ./buildeb.sh
-        
-    - name: Verify ISO Creation
-      run: |
-        if [ ! -f buildeb/secOS.iso ]; then
-          echo "Error: secOS.iso was not created!"
-          exit 1
-        fi
-        echo "ISO file created successfully"
-        ls -lh buildeb/secOS.iso
 
-    - name: Upload ISO artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: secOS-iso
-        path: buildeb/secOS.iso
-        retention-days: 7
+    - name: Upload to Cloudflare R2
+      env:
+        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      run: |
+        curl https://rclone.org/install.sh | sudo bash
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf << EOF
+        [r2]
+        type = s3
+        provider = Cloudflare
+        access_key_id = ${R2_ACCESS_KEY_ID}
+        secret_access_key = ${R2_SECRET_ACCESS_KEY}
+        endpoint = ${R2_ENDPOINT}
+        acl = private
+        EOF
+        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME}
