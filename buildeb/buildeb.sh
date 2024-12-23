@@ -462,6 +462,7 @@ create_iso() {
             VBoxManage unregistervm "$VM_NAME" --delete >/dev/null 2>&1
         fi
     )
+}
     
 main() {
     # Check and remove existing temporary directory if it exists
