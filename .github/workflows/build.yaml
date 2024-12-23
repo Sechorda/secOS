@@ -27,10 +27,6 @@ jobs:
         cd buildeb
         sudo ./buildeb.sh
 
-    - name: Convert ISO to VMDK
-      run: |
-        qemu-img convert -f raw -O vmdk buildeb/secOS.iso buildeb/secOS.vmdk
-
     - name: Upload to Cloudflare R2
       env:
         R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
