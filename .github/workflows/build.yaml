@@ -1,6 +1,10 @@
 name: Build SecOS ISO
+
 on:
-  workflow_dispatch:  # Only manual trigger
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:  # Keep the manual trigger as well
 
 jobs:
   build-secOS:
@@ -34,6 +38,7 @@ jobs:
         R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
         R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        VERSION: ${{ github.ref_name }}
       run: |
         mkdir -p ~/.config/rclone
         cat > ~/.config/rclone/rclone.conf << EOF
@@ -45,5 +50,20 @@ jobs:
         endpoint = ${R2_ENDPOINT}
         acl = private
         EOF
-        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME}
-        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME}
+        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME} --metadata version=${VERSION}
+        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME} --metadata version=${VERSION}
+
+    - name: Update version in App.jsx
+      if: env.VERSION != ''
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ env.VERSION }}
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        git clone --branch gh-pages-src https://github.com/Sechorda/secOS.git
+        cd secOS
+        sed -i 's/Latest Release: v[0-9]*\.[0-9]*\.[0-9]* beta/Latest Release: v${VERSION} beta/' src/App.jsx
+        git add src/App.jsx
+        git commit -m "Update version to v${VERSION}"
+        git push origin gh-pages-src
