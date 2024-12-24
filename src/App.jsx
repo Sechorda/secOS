@@ -33,12 +33,12 @@ export default function App() {
           <DownloadCard 
             type="ISO Image"
             size="2.5 GB"
-            url="https://download.sec-os.com/uploads/secOS.iso"
+            url="https://download.sec-os.com/secos/secOS.iso"
           />
           <DownloadCard 
             type="OVA Image"
             size="2.5 GB"
-            url="https://download.sec-os.com/uploads/secOS.ova"
+            url="https://download.sec-os.com/secos/secOS.vmdk"
           />
         </div>
 
