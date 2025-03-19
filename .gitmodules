@@ -1,0 +1,3 @@
+[submodule "RF-Lockpick"]
+	path = RF-Lockpick
+	url = https://github.com/Sechorda/RF-Lockpick.git
