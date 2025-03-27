@@ -9,7 +9,12 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
-LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
+# Try current directory first, fall back to /tmp if needed
+if mkdir -p "${PWD}/LIVE_BOOT" 2>/dev/null; then
+    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
+else
+    LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
+fi
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
@@ -17,7 +22,7 @@ CUSTOM_PROGRAMS=(
     # Dev
     openssh-server
     # Packages
-    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome picom rofi proxychains
+    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome picom rofi proxychains kismet
     # Dependencies
     sudo git golang-go python3 python3-pip pipx python3-setuptools unzip pciutils wget tar dpkg locales tzdata curl gpg
     network-manager net-tools network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng iputils-ping iproute2
@@ -26,7 +31,7 @@ CUSTOM_PROGRAMS=(
     libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 libkf5package5 libkf5parts5 
     libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6 libyaml-cpp0.7
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
-    udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64
+    udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool
 )
 
 NO_RECOMMENDS_PROGRAMS=(
@@ -52,32 +57,34 @@ bootstrap_debian() {
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
 }
 
-install_kernel_and_packages() {    
+install_kernel_and_packages() {
     echo "Installing kernel and packages..."
     # Create user '${USERNAME}'
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}"
-    echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1
+    echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" >/dev/null 2>&1
 
-    echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd
+    echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
     
     # Configure repositories
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list"
+        "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" >/dev/null 2>&1
     
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        apt-get install -y curl gpg >/dev/null 2>&1
-        curl -sS https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/spotify.gpg
+        apt-get install -y curl gpg >/dev/null 2>&1 || echo 'Warning: Failed to install curl and gpg - some repositories may not work' >&2
+        curl -f -sS https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/spotify.gpg 2>/dev/null
         echo 'deb http://repository.spotify.com stable non-free' | tee /etc/apt/sources.list.d/spotify.list >/dev/null
-    "
-        
+        curl -f -sS https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor > /usr/share/keyrings/kismet-archive-keyring.gpg 2>/dev/null
+        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' | tee /etc/apt/sources.list.d/kismet.list >/dev/null
+    " >/dev/null 2>&1
+
     # Install Linux kernel & APT packages
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
         apt-get update >/dev/null 2>&1 && \
         apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1 && \
         apt-get --yes --quiet --no-install-recommends install ${NO_RECOMMENDS_PROGRAMS[*]} >/dev/null 2>&1
-    "
+    " >/dev/null 2>&1
     
     # Nody-Greeter install
     sudo wget -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"
@@ -107,8 +114,8 @@ install_kernel_and_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         cd /tmp &&
         tar -xzf caido-cli.tar.gz >/dev/null 2>&1 &&
-        mv caido-cli /usr/local/bin/caido &&
-        chmod +x /usr/local/bin/caido &&
+        mv caido-cli /usr/local/bin/caido-cli &&
+        chmod +x /usr/local/bin/caido-cli &&
         rm caido-cli.tar.gz
     "
 }
@@ -260,6 +267,14 @@ install_github_packages() {
         echo '#!/bin/bash' > /usr/local/bin/spiderfoot &&
         echo 'python3 /usr/local/bin/.spiderfoot/sf.py \"\$@\"' >> /usr/local/bin/spiderfoot &&
         chmod +x /usr/local/bin/spiderfoot
+    "
+
+    # Installing RF-Lockpick (local)
+    sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick"
+    sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        pip3 install flask flask-cors flask-socketio python-dotenv requests --break-system-packages
+        chmod +x /usr/local/bin/rf
     "
 
     # Ensure all users can access the installed tools
