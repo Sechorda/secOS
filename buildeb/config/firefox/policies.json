@@ -44,6 +44,10 @@
       {
         "Title": "CSP-bypass",
         "URL": "https://cspbypass.com/"
+      },
+      {
+        "Title": "RF-Lockpick",
+        "URL": "http://localhost:8005"
       }
     ]
   }
