@@ -56,7 +56,7 @@ jobs:
     - name: Update version in App.jsx
       if: env.VERSION != ''
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.ACTIONS_PAT }}
         VERSION: ${{ github.ref_name }}
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -66,4 +66,4 @@ jobs:
         sed -i 's/Latest Release: v[0-9]*\.[0-9]*\.[0-9]* beta/Latest Release: v${VERSION} beta/' src/App.jsx
         git add src/App.jsx
         git commit -m "Update version to v${VERSION}"
-        git push origin gh-pages-src
+        git push https://x-access-token:${{ secrets.ACTIONS_PAT }}@github.com/Sechorda/secOS.git gh-pages-src
