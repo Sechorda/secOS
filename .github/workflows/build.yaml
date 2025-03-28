@@ -50,14 +50,14 @@ jobs:
         endpoint = ${R2_ENDPOINT}
         acl = private
         EOF
-        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME} --metadata version=${VERSION}
-        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME} --metadata version=${VERSION}
+        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME}/secOS-${VERSION}.iso
+        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME}/secOS-${VERSION}.vmdk
 
     - name: Update version in App.jsx
       if: env.VERSION != ''
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        VERSION: ${{ env.VERSION }}
+        VERSION: ${{ github.ref_name }}
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
