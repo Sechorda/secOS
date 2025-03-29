@@ -9,11 +9,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 1
-        access-token: x-access-token:${{ secrets.ACTIONS_PAT }}
+        access-token: x-access-token:${{ secrets.ACTION_PAT }}
         
     - name: Test GitHub Authentication and Push
       env:
-        ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
+        ACTION_PAT: ${{ secrets.ACTION_PAT }}
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
@@ -22,4 +22,4 @@ jobs:
         echo "This is a test file created on $(date)" > test.txt
         git add test.txt
         git commit -m "Add test.txt to verify authentication"
-        git push https://x-access-token:${{ secrets.ACTIONS_PAT }}@github.com/Sechorda/secOS gh-pages-src
+        git push https://x-access-token:${{ secrets.ACTION_PAT }}@github.com/Sechorda/secOS gh-pages-src
