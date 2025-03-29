@@ -68,5 +68,3 @@ jobs:
         git add src/App.jsx
         git commit -m "Update version to v${VERSION}"
         git push https://x-access-token:${{ secrets.ACTION_PAT }}@github.com/Sechorda/secOS gh-pages-src
-      env:
-        ACTION_PAT: ${{ secrets.ACTION_PAT }}
