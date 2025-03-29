@@ -56,7 +56,7 @@ jobs:
     - name: Update version in App.jsx
       if: env.VERSION != ''
       env:
-        GITHUB_TOKEN: ${{ secrets.ACTIONS_PAT }}
+        ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
         VERSION: ${{ github.ref_name }}
       run: |
         git config --global user.name "GitHub Actions"
