@@ -52,8 +52,8 @@ jobs:
         endpoint = ${R2_ENDPOINT}
         acl = private
         EOF
-        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME}/secOS.iso
-        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME}/secOS.vmdk
+        rclone copy buildeb/secOS.iso r2:${R2_BUCKET_NAME}/
+        rclone copy buildeb/secOS.vmdk r2:${R2_BUCKET_NAME}/
 
     - name: Update version in App.jsx
       if: env.VERSION != ''
