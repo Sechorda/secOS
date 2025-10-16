@@ -20,6 +20,9 @@
 
 secOS is a Debian-based Linux distribution for cybersecurity researchers. It combines essential penetration testing and bug bounty tools into a pre-configured metaframework, emphasizing minimalism and efficiency. The lightweight design enables security practitioners to focus on testing rather than setup and configuration.
 
+<img width="2871" height="2158" alt="image" src="https://github.com/user-attachments/assets/8889a40b-1f2f-440b-a577-04edab05d686" />
+
+
 ---
 
 # Build secOS
