@@ -43,26 +43,100 @@ local terminal     = "kitty"
 local editor       = os.getenv("EDITOR") or "vim"
 local browser      = "Firefox"
 local scrlocker    = "dm-tool switch-to-greeter"
+
+--[[------------------------------------------------------------
+                           Layouts
+------------------------------------------------------------]]--
+local term_layout = {}
+term_layout.name = "tile"
+term_layout.icon = awful.layout.suit.tile.icon
+local gap_size = 5
+local terminal_side_preference = {}
+
+local function assign_terminal_side(client_id, clients)
+    if terminal_side_preference[client_id] then
+        return terminal_side_preference[client_id]
+    end
+    
+    local left_assigned, right_assigned = 0, 0
+    for _, c in ipairs(clients) do
+        local pref = terminal_side_preference[c.window]
+        if pref == "left" then left_assigned = left_assigned + 1
+        elseif pref == "right" then right_assigned = right_assigned + 1 end
+    end
+    
+    local side = (left_assigned == 0) and "left" or 
+                 (right_assigned < 3) and "right" or 
+                 (left_assigned < 3) and "left" or "right"
+    
+    terminal_side_preference[client_id] = side
+    return side
+end
+
+function term_layout.arrange(p)
+    local area = p.workarea
+    local n = #p.clients
+    if n == 0 then return end
+    
+    if n == 1 then
+        p.clients[1]:geometry({
+            x = area.x + gap_size, y = area.y + gap_size,
+            width = area.width - 2 * gap_size, height = area.height - 2 * gap_size
+        })
+        return
+    end
+    
+    local left_clients, right_clients = {}, {}
+    for _, c in ipairs(p.clients) do
+        local side = assign_terminal_side(c.window, p.clients)
+        if side == "left" then table.insert(left_clients, c)
+        else table.insert(right_clients, c) end
+    end
+    
+    local function arrange_side(clients, x_pos, width)
+        local count = #clients
+        if count == 0 then return end
+        
+        if count == 1 and clients == left_clients then
+            clients[1]:geometry({
+                x = x_pos, y = area.y + gap_size,
+                width = width, height = area.height - 2 * gap_size
+            })
+        else
+            for i, c in ipairs(clients) do
+                local height = (area.height - (count + 1) * gap_size) / count
+                c:geometry({
+                    x = x_pos, y = area.y + (i - 1) * (height + gap_size) + gap_size,
+                    width = width, height = height
+                })
+            end
+        end
+    end
+    
+    arrange_side(left_clients, area.x + gap_size, area.width * 0.4 - 2 * gap_size)
+    arrange_side(right_clients, area.x + area.width * 0.4 + gap_size, area.width * 0.6 - 2 * gap_size)
+end
+
+client.connect_signal("unmanage", function(c)
+    if c.instance == "kitty" or c.class == "kitty" then
+        terminal_side_preference[c.window] = nil
+    end
+end)
+
 -- Theme
 beautiful.init(string.format("%s/.config/awesome/themes/holo/theme.lua", os.getenv("HOME"))) 
-
 
 awful.util.terminal = terminal
 awful.util.tagnames = { "Term", "Web", ".md", "Other" }
 awful.layout.layouts = {
     awful.layout.suit.tile,
     awful.layout.suit.floating,
+    term_layout,
 }
 
 awful.util.taglist_buttons = mytable.join(
     awful.button({ }, 1, function(t) t:view_only() end),
-    awful.button({ modkey }, 1, function(t)
-        if client.focus then client.focus:move_to_tag(t) end
-    end),
     awful.button({ }, 3, awful.tag.viewtoggle),
-    awful.button({ modkey }, 3, function(t)
-        if client.focus then client.focus:toggle_tag(t) end
-    end),
     awful.button({ }, 4, function(t) awful.tag.viewnext(t.screen) end),
     awful.button({ }, 5, function(t) awful.tag.viewprev(t.screen) end)
 )
@@ -77,36 +151,42 @@ awful.util.taglist_buttons = mytable.join(
 gears.wallpaper.maximized(beautiful.wallpaper, screen.primary, true)
 
 -- Create a wibox for each screen and add it
-awful.screen.connect_for_each_screen(function(s) beautiful.at_screen_connect(s) end)
+awful.screen.connect_for_each_screen(function(s) 
+    beautiful.at_screen_connect(s)
+    
+    -- Set the Term tag to use the custom layout
+    local term_tag = s.tags[1] -- "Term" is the first tag
+    if term_tag then
+        term_tag.layout = term_layout
+    end
+end)
 --[[------------------------------------------------------------
                         Key/Mouse bindings
 ------------------------------------------------------------]]--\n
 globalkeys = mytable.join(
-     -- Toggle window/tiling
-     awful.key({ modkey }, "space", function()
-        awful.layout.inc(1)
-    end,
-    {description = "toggle tiling and floating", group = "layout"}),
-    -- Destroy all notifications
-    awful.key({ "Control",           }, "space", function() naughty.destroy_all_notifications() end,
-              {description = "destroy all notifications", group = "hotkeys"}),
-              
     -- Take a screenshot
     awful.key({ altkey }, "p", function() os.execute("screenshot") end,
               {description = "take a screenshot", group = "hotkeys"}),
 
     -- Lock screen
-    awful.key({ modkey }, "l", function () os.execute(scrlocker) end,
+    awful.key({ "Control", altkey }, "l", function () os.execute(scrlocker) end,
               {description = "lock screen", group = "hotkeys"}),
 
     -- Show help
-    awful.key({ modkey,           }, "s",      hotkeys_popup.show_help,
+    awful.key({ "Control" }, "s", hotkeys_popup.show_help,
               {description="show help", group="awesome"}),
 
-    -- Tag browsing
-    awful.key({ modkey,           }, "Left",   function () lain.util.tag_view_nonempty(-1) end,
+    -- Copy primary to clipboard (terminals to gtk)
+    awful.key({ "Control" }, "c", function () awful.spawn.with_shell("xsel | xsel -i -b") end,
+              {description = "copy terminal to gtk", group = "hotkeys"}),
+    -- Copy clipboard to primary (gtk to terminals)
+    awful.key({ "Control" }, "v", function () awful.spawn.with_shell("xsel -b | xsel") end,
+              {description = "copy gtk to terminal", group = "hotkeys"}),
+
+    -- Tag browsing with Ctrl + arrow keys
+    awful.key({ "Control" }, "Left",   function () lain.util.tag_view_nonempty(-1) end,
               {description = "view previous non-empty", group = "tag"}),
-    awful.key({ modkey,           }, "Right",  function () lain.util.tag_view_nonempty(1) end,
+    awful.key({ "Control" }, "Right",  function () lain.util.tag_view_nonempty(1) end,
               {description = "view next non-empty", group = "tag"}),
 
     -- Window focusing with alt + arrow keys
@@ -141,73 +221,29 @@ globalkeys = mytable.join(
         end,
         {description = "window switcher", group = "client"}),
 
-    -- Dynamic tagging
-    awful.key({ modkey, "Shift" }, "n", function () lain.util.add_tag() end,
-              {description = "add new tag", group = "tag"}),
-    awful.key({ modkey, "Shift" }, "d", function () lain.util.delete_tag() end,
-              {description = "delete tag", group = "tag"}),
-
     -- Standard program
-    awful.key({ modkey,           }, "Return", function () awful.spawn(terminal) end,
+    awful.key({ "Control", "Mod1" }, "t", function () awful.spawn(terminal) end,
               {description = "open a terminal", group = "launcher"}),
-    awful.key({ modkey, "Shift"   }, "q", awesome.quit,
-              {description = "quit awesome", group = "awesome"}),
 
-    -- Copy primary to clipboard (terminals to gtk)
-    awful.key({ modkey }, "c", function () awful.spawn.with_shell("xsel | xsel -i -b") end,
-              {description = "copy terminal to gtk", group = "hotkeys"}),
-    -- Copy clipboard to primary (gtk to terminals)
-    awful.key({ modkey }, "v", function () awful.spawn.with_shell("xsel -b | xsel") end,
-              {description = "copy gtk to terminal", group = "hotkeys"}),
     -- Prompt
-    awful.key({ modkey }, "r", function () awful.spawn("rofi -show drun -config ~/.config/rofi/config.rasi -theme /home/mist/.config/ronema/ronema.rasi") end,
+    awful.key({ "Control" }, "space", function () awful.spawn("rofi -show drun -config ~/.config/rofi/config.rasi -theme /home/mist/.config/ronema/ronema.rasi") end,
           {description = "open launcher", group = "launcher"})
 )
 
 clientkeys = mytable.join(
-    awful.key({ modkey,           }, "f",
-        function (c)
-            c.fullscreen = not c.fullscreen
-            c:raise()
-        end,
-        
-        {description = "toggle fullscreen", group = "client"}),
     awful.key({ "Control"         }, "w",      function (c) c:kill()                         end,
               {description = "close", group = "client"})
 )
 
--- Bind all key numbers to tags.
-for i = 1, 6 do
-    globalkeys = mytable.join(globalkeys,
-        -- View tag only.
-        awful.key({ modkey }, "#" .. i + 9,
-                  function ()
-                        local screen = awful.screen.focused()
-                        local tag = screen.tags[i]
-                        if tag then
-                           tag:view_only()
-                        end
-                  end,
-                  {description = "view tag #"..i, group = "tag"})
-    )
-end
+-- Number key tag switching disabled - use Ctrl + arrow keys only for tag switching
 
 clientbuttons = mytable.join(
     awful.button({ }, 1, function (c)
         c:emit_signal("request::activate", "mouse_click", {raise = true})
     end),
-    awful.button({ modkey }, 1, function (c)
-        c:emit_signal("request::activate", "mouse_click", {raise = true})
-        awful.mouse.client.move(c)
-    end),
-    awful.button({ modkey }, 3, function (c)
+    awful.button({ }, 3, function (c)
         c:emit_signal("request::activate", "mouse_click", {raise = true})
         awful.mouse.client.resize(c)
-    end),
-    -- right-click to move windows
-    awful.button({ modkey }, 3, function (c)
-        c:emit_signal("request::activate", "mouse_click", {raise = true})
-        awful.mouse.client.move(c)
     end)
 )
 
@@ -252,39 +288,6 @@ awful.rules.rules = {
     { rule = { class = "spotify" },
     properties = { screen = 1, tag = "Other" } },
 }
---[[------------------------------------------------------------
-                           Layouts
-------------------------------------------------------------]]--
--- Custom layout for Term tag
-local term_layout = {}
-term_layout.name = "term_layout"
-local gap_size = 5 -- Adjust this value to increase or decrease the gap size
-
-function term_layout.arrange(p)
-    local area = p.workarea
-    local n = #p.clients
-    
-    for i, c in ipairs(p.clients) do
-        if i == 1 then
-            -- First client takes up the left 30% vertically
-            c:geometry({
-                x = area.x + gap_size,
-                y = area.y + gap_size,
-                width = area.width * 0.3 - 2 * gap_size,
-                height = area.height - 2 * gap_size
-            })
-        else
-            -- Other clients share the right 70% horizontally
-            local height = (area.height - (n * gap_size)) / (n - 1)
-            c:geometry({
-                x = area.x + area.width * 0.3 + gap_size,
-                y = area.y + (i - 2) * (height + gap_size) + gap_size,
-                width = area.width * 0.7 - 2 * gap_size,
-                height = height
-            })
-        end
-    end
-end
 
 -- Function to close all windows
 local function close_all_clients()
@@ -316,13 +319,8 @@ client.connect_signal("manage", function (c)
         awful.placement.no_offscreen(c)
     end
 
-    -- Switch to the tag of the new client
-    if not awesome.startup then
-        local target_tag = c.first_tag
-        if target_tag then
-            target_tag:view_only()
-        end
-    end
+    -- Do not automatically switch to the tag of the new client
+    -- Stay on current tag until manually changed
 end)
 
 -- Add a titlebar if titlebars_enabled is set to true in the rules.
