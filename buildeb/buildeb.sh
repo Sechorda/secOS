@@ -1,7 +1,50 @@
 #!/usr/bin/env bash
 
 set -e  # Exit immediately if a command exits with a non-zero status
+
+# Enhanced error handling and debugging
+DEBUG_LOG="/tmp/secos_build_debug.log"
+exec 2> >(tee -a "${DEBUG_LOG}")
+
+debug_info() {
+    echo "=== DEBUG: $1 ===" | tee -a "${DEBUG_LOG}"
+    echo "Timestamp: $(date)" | tee -a "${DEBUG_LOG}"
+    echo "Memory usage: $(free -h | grep '^Mem:' | awk '{print "Used: " $3 ", Available: " $7}')" | tee -a "${DEBUG_LOG}"
+    echo "Disk usage: $(df -h /tmp | tail -1 | awk '{print "Used: " $3 ", Available: " $4}')" | tee -a "${DEBUG_LOG}"
+    echo "Process count: $(ps aux | wc -l)" | tee -a "${DEBUG_LOG}"
+    echo "Last 5 apt errors:" | tee -a "${DEBUG_LOG}"
+    tail -5 /var/log/apt/term.log 2>/dev/null | tee -a "${DEBUG_LOG}" || echo "No apt logs available" | tee -a "${DEBUG_LOG}"
+    echo "" | tee -a "${DEBUG_LOG}"
+}
+
+handle_error() {
+    local exit_code=$?
+    local line_number=$1
+    echo "=== CRITICAL ERROR ===" | tee -a "${DEBUG_LOG}"
+    echo "Exit code: ${exit_code}" | tee -a "${DEBUG_LOG}"
+    echo "Failed at line: ${line_number}" | tee -a "${DEBUG_LOG}"
+    echo "Command: ${BASH_COMMAND}" | tee -a "${DEBUG_LOG}"
+    echo "Function stack: ${FUNCNAME[*]}" | tee -a "${DEBUG_LOG}"
+    debug_info "Error occurred"
+    
+    # Show chroot processes if they exist
+    if [ -d "${LIVE_BOOT_DIR}/chroot/proc" ]; then
+        echo "Chroot processes:" | tee -a "${DEBUG_LOG}"
+        sudo lsof "${LIVE_BOOT_DIR}/chroot" 2>/dev/null | tee -a "${DEBUG_LOG}" || echo "No chroot processes found" | tee -a "${DEBUG_LOG}"
+    fi
+    
+    # Show last 20 lines of debug log
+    echo "=== LAST 20 DEBUG LINES ===" | tee -a "${DEBUG_LOG}"
+    tail -20 "${DEBUG_LOG}"
+    
+    exit $exit_code
+}
+
+trap 'handle_error ${LINENO}' ERR
 trap 'rm -rf "${LIVE_BOOT_DIR}"' EXIT  # Clean up on exit
+
+echo "=== Starting secOS Build Process ===" | tee -a "${DEBUG_LOG}"
+debug_info "Build initialization"
 
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
@@ -58,66 +101,223 @@ bootstrap_debian() {
 }
 
 install_kernel_and_packages() {
-    echo "Installing kernel and packages..."
-    # Create user '${USERNAME}'
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1
-    echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" >/dev/null 2>&1
-
-    echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
+    echo "Installing kernel and packages..." | tee -a "${DEBUG_LOG}"
+    debug_info "Starting package installation"
     
-    # Configure repositories
+    # Create user with detailed logging
+    echo "Creating user ${USERNAME}..." | tee -a "${DEBUG_LOG}"
+    if sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" 2>>"${DEBUG_LOG}"; then
+        echo "✓ User ${USERNAME} created successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to create user ${USERNAME}" | tee -a "${DEBUG_LOG}"
+        return 1
+    fi
+    
+    # Set passwords
+    echo "Setting user passwords..." | tee -a "${DEBUG_LOG}"
+    echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd 2>>"${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" 2>>"${DEBUG_LOG}"
+    echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd 2>>"${DEBUG_LOG}"
+    
+    debug_info "User setup completed"
+    
+    # Configure repositories with detailed logging
+    echo "Configuring repositories..." | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" >/dev/null 2>&1
+        "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" 2>>"${DEBUG_LOG}"
     
+    echo "Current sources.list content:" | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" cat /etc/apt/sources.list | tee -a "${DEBUG_LOG}"
+    
+    # Install basic tools first
+    echo "Installing basic tools (curl, gpg)..." | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+        "export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y curl gpg" 2>>"${DEBUG_LOG}"
+    
+    if [ $? -eq 0 ]; then
+        echo "✓ Basic tools installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to install basic tools" | tee -a "${DEBUG_LOG}"
+        debug_info "Basic tools installation failed"
+        return 1
+    fi
+    
+    # Add external repositories with error handling
+    echo "Adding external repositories..." | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        apt-get install -y curl gpg >/dev/null 2>&1 || echo 'Warning: Failed to install curl and gpg - some repositories may not work' >&2
-        curl -f -sS https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/spotify.gpg 2>/dev/null
-        echo 'deb http://repository.spotify.com stable non-free' | tee /etc/apt/sources.list.d/spotify.list >/dev/null
-        curl -f -sS https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor > /usr/share/keyrings/kismet-archive-keyring.gpg 2>/dev/null
-        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' | tee /etc/apt/sources.list.d/kismet.list >/dev/null
-    " >/dev/null 2>&1
-
-    # Install Linux kernel & APT packages
+        # Test network connectivity first
+        echo 'Testing network connectivity...'
+        if curl -s --connect-timeout 10 https://www.google.com >/dev/null; then
+            echo '✓ Network connectivity OK'
+        else
+            echo '✗ Network connectivity issues'
+            exit 1
+        fi
+        
+        # Spotify repository
+        echo 'Adding Spotify repository...'
+        if curl -f -sS --connect-timeout 30 https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/spotify.gpg 2>/dev/null; then
+            echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
+            echo '✓ Spotify repository added successfully'
+        else
+            echo '✗ Failed to add Spotify repository (continuing without it)'
+        fi
+        
+        # Kismet repository
+        echo 'Adding Kismet repository...'
+        if curl -f -sS --connect-timeout 30 https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor > /usr/share/keyrings/kismet-archive-keyring.gpg 2>/dev/null; then
+            echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' > /etc/apt/sources.list.d/kismet.list
+            echo '✓ Kismet repository added successfully'
+        else
+            echo '✗ Failed to add Kismet repository (continuing without it)'
+        fi
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    debug_info "Repository setup completed"
+    
+    # Update package lists
+    echo "Updating package lists..." | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+        "export DEBIAN_FRONTEND=noninteractive && apt-get update" 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        echo "✓ Package lists updated successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to update package lists" | tee -a "${DEBUG_LOG}"
+        debug_info "Package list update failed"
+    fi
+    
+    # Install kernel first (most critical)
+    echo "Installing Linux kernel..." | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get update >/dev/null 2>&1 && \
-        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1 && \
-        apt-get --yes --quiet --no-install-recommends install ${NO_RECOMMENDS_PROGRAMS[*]} >/dev/null 2>&1
-    " >/dev/null 2>&1
+        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv" 2>&1 | tee -a "${DEBUG_LOG}"
     
-    # Nody-Greeter install
-    sudo wget -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        dpkg -i /tmp/nody-greeter.deb >/dev/null 2>&1
-        rm /tmp/nody-greeter.deb
-    "
+    local kernel_exit_code=${PIPESTATUS[0]}
+    if [ $kernel_exit_code -eq 0 ]; then
+        echo "✓ Kernel installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Kernel installation failed with exit code: $kernel_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "Kernel installation failed"
+        echo "Attempting to check what went wrong..." | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "apt-cache policy linux-image-amd64" 2>&1 | tee -a "${DEBUG_LOG}"
+        return $kernel_exit_code
+    fi
+    
+    debug_info "Kernel installation completed"
+    
+    # Install packages in smaller batches
+    echo "Installing core packages..." | tee -a "${DEBUG_LOG}"
+    
+    # Remove problematic packages that we know might fail
+    SAFE_PROGRAMS=($(printf '%s\n' "${CUSTOM_PROGRAMS[@]}" | grep -v -E '^(spotify-client|kismet|firmware-iwlwifi)$'))
+    
+    # Install packages with detailed error reporting
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+        "export DEBIAN_FRONTEND=noninteractive && \
+        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install ${SAFE_PROGRAMS[*]}" 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local packages_exit_code=${PIPESTATUS[0]}
+    if [ $packages_exit_code -eq 0 ]; then
+        echo "✓ Core packages installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Core packages installation failed with exit code: $packages_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "Core packages installation failed"
+        
+        # Try to identify which packages failed
+        echo "Checking individual package availability..." | tee -a "${DEBUG_LOG}"
+        for pkg in "${SAFE_PROGRAMS[@]}"; do
+            sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "apt-cache show $pkg >/dev/null 2>&1" && echo "✓ $pkg available" || echo "✗ $pkg NOT available" 
+        done 2>&1 | tee -a "${DEBUG_LOG}"
+        
+        return $packages_exit_code
+    fi
+    
+    # Try to install optional packages separately
+    echo "Installing optional packages..." | tee -a "${DEBUG_LOG}"
+    for optional_pkg in spotify-client kismet firmware-iwlwifi; do
+        echo "Attempting to install $optional_pkg..." | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+            "export DEBIAN_FRONTEND=noninteractive && \
+            apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install $optional_pkg" 2>&1 | tee -a "${DEBUG_LOG}"
+        
+        if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "✓ $optional_pkg installed successfully" | tee -a "${DEBUG_LOG}"
+        else
+            echo "✗ $optional_pkg installation failed (continuing without it)" | tee -a "${DEBUG_LOG}"
+        fi
+    done
+    
+    # Install no-recommends packages
+    echo "Installing no-recommends packages..." | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+        "export DEBIAN_FRONTEND=noninteractive && \
+        apt-get --yes --quiet --no-install-recommends install ${NO_RECOMMENDS_PROGRAMS[*]}" 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    debug_info "Package installation phase completed"
+    
+    # External package installations with error handling
+    install_external_packages_with_debug
+}
+
+install_external_packages_with_debug() {
+    echo "Installing external packages..." | tee -a "${DEBUG_LOG}"
+    
+    # Nody-Greeter install with error handling
+    echo "Installing Nody-Greeter..." | tee -a "${DEBUG_LOG}"
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL" 2>>"${DEBUG_LOG}"; then
+        echo "✓ Nody-Greeter downloaded successfully" | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            dpkg -i /tmp/nody-greeter.deb 2>&1 && echo 'Nody-Greeter installed successfully' || echo 'Nody-Greeter installation failed'
+            rm /tmp/nody-greeter.deb
+        " 2>&1 | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to download Nody-Greeter" | tee -a "${DEBUG_LOG}"
+    fi
 
     # Calamares install
-    sudo cp "${PWD}/config/calamares/calamares_3.3.8.deb" "${LIVE_BOOT_DIR}/chroot/tmp/calamares.deb"
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        dpkg -i /tmp/calamares.deb >/dev/null 2>&1
-        rm /tmp/calamares.deb
-    "
+    echo "Installing Calamares..." | tee -a "${DEBUG_LOG}"
+    if [ -f "${PWD}/config/calamares/calamares_3.3.8.deb" ]; then
+        sudo cp "${PWD}/config/calamares/calamares_3.3.8.deb" "${LIVE_BOOT_DIR}/chroot/tmp/calamares.deb"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            dpkg -i /tmp/calamares.deb 2>&1 && echo 'Calamares installed successfully' || echo 'Calamares installation failed'
+            rm /tmp/calamares.deb
+        " 2>&1 | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Calamares .deb file not found" | tee -a "${DEBUG_LOG}"
+    fi
 
-    # Obsidian install
-    sudo wget -q -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        dpkg -i /tmp/obsidian.deb >/dev/null 2>&1
-        apt-get install -f -y >/dev/null 2>&1  # Install dependencies if needed        
-        ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian     
-        rm /tmp/obsidian.deb
-    "
+    # Obsidian install with error handling
+    echo "Installing Obsidian..." | tee -a "${DEBUG_LOG}"
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL" 2>>"${DEBUG_LOG}"; then
+        echo "✓ Obsidian downloaded successfully" | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            dpkg -i /tmp/obsidian.deb 2>&1 || apt-get install -f -y
+            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian 2>/dev/null || echo 'Failed to create Obsidian symlink'
+            rm /tmp/obsidian.deb
+            echo 'Obsidian installation completed'
+        " 2>&1 | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to download Obsidian" | tee -a "${DEBUG_LOG}"
+    fi
 
-    # Caido CLI install and setup
-    sudo wget -q -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL"
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        cd /tmp &&
-        tar -xzf caido-cli.tar.gz >/dev/null 2>&1 &&
-        mv caido-cli /usr/local/bin/caido-cli &&
-        chmod +x /usr/local/bin/caido-cli &&
-        rm caido-cli.tar.gz
-    "
+    # Caido CLI install with error handling
+    echo "Installing Caido CLI..." | tee -a "${DEBUG_LOG}"
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL" 2>>"${DEBUG_LOG}"; then
+        echo "✓ Caido CLI downloaded successfully" | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            cd /tmp &&
+            tar -xzf caido-cli.tar.gz 2>&1 &&
+            mv caido-cli /usr/local/bin/caido-cli &&
+            chmod +x /usr/local/bin/caido-cli &&
+            rm caido-cli.tar.gz
+            echo 'Caido CLI installation completed'
+        " 2>&1 | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Failed to download Caido CLI (continuing without it)" | tee -a "${DEBUG_LOG}"
+    fi
+    
+    debug_info "External packages installation completed"
 }
 
 install_github_packages() {
