@@ -72,7 +72,7 @@ CUSTOM_PROGRAMS=(
     firmware-linux-nonfree firmware-iwlwifi xorg xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all alsa-utils playerctl
     gobject-introspection liblightdm-gobject-1-0 liblightdm-gobject-dev libgirepository1.0-dev libcairo2 libcairo2-dev
     libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 libkf5package5 libkf5parts5 
-    libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6
+    libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6 libyaml-cpp0.7
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
     udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez
 )
@@ -175,16 +175,26 @@ install_kernel_and_packages() {
     
     debug_info "Repository setup completed"
     
-    # Update package lists
+    # Update package lists with more thorough approach
     echo "Updating package lists..." | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && apt-get update" 2>&1 | tee -a "${DEBUG_LOG}"
+        "export DEBIAN_FRONTEND=noninteractive && apt-get clean && apt-get update" 2>&1 | tee -a "${DEBUG_LOG}"
     
-    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    local update_exit_code=${PIPESTATUS[0]}
+    if [ $update_exit_code -eq 0 ]; then
         echo "✓ Package lists updated successfully" | tee -a "${DEBUG_LOG}"
     else
-        echo "✗ Failed to update package lists" | tee -a "${DEBUG_LOG}"
+        echo "✗ Failed to update package lists with exit code: $update_exit_code" | tee -a "${DEBUG_LOG}"
         debug_info "Package list update failed"
+        
+        # Show what repositories are configured
+        echo "Current repository configuration:" | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "find /etc/apt -name '*.list*' -exec echo '=== {} ===' \; -exec cat {} \;" 2>&1 | tee -a "${DEBUG_LOG}"
+        
+        # Try a more forceful update
+        echo "Attempting forceful package list update..." | tee -a "${DEBUG_LOG}"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+            "export DEBIAN_FRONTEND=noninteractive && apt-get update --allow-insecure-repositories" 2>&1 | tee -a "${DEBUG_LOG}"
     fi
     
     # Install kernel first (most critical)
