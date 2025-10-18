@@ -287,15 +287,19 @@ if __name__ == "__main__":
 {COLORS['BLUE']}secＯ•Ｓ -- OSINT Tool{COLORS['NC']}
 A tool for gathering OSINT data using Spiderfoot and phone number lookups.
 
-{COLORS['BLUE']}Target Types:{COLORS['NC']}
-  - Username/Email/Full Name: Will use Spiderfoot
-  - Phone Number: Must use format 123-456-7890 (dashes required) Will use thatsthem.com custom API
-
-{COLORS['BLUE']}Examples:{COLORS['NC']}
-  python osint.py John Smith         # Full name lookup using Spiderfoot (no quotes needed)
-  python osint.py johndoe           # Username lookup using Spiderfoot
-  python osint.py user@example.com   # Email lookup using Spiderfoot
-  python osint.py 123-456-7890      # Phone number lookup using thatsthem.com
+{COLORS['BLUE']}Usage:{COLORS['NC']}
+  osint John Smith
+    Performs full name lookup using Spiderfoot (no quotes needed)
+  
+  osint johndoe
+    Performs username lookup using Spiderfoot
+  
+  osint user@example.com
+    Performs email lookup using Spiderfoot
+  
+  osint 123-456-7890
+    Performs phone number lookup using thatsthem.com custom API
+    Phone numbers must use format 123-456-7890 (dashes required)
 """)
         sys.exit(1)
     

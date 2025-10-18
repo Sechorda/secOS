@@ -17,12 +17,7 @@ import botocore
 import socket
 import logging
 
-# ANSI color codes
-GREEN = '\033[0;32m'
-YELLOW = '\033[1;33m'
-BLUE = '\033[0;34m'
-RED = '\033[0;31m'
-NC = '\033[0m'  # No Color
+COLORS = {'GREEN': '\033[0;32m', 'YELLOW': '\033[1;33m', 'BLUE': '\033[0;34m', 'RED': '\033[0;31m', 'NC': '\033[0m'}
 
 # Spinner characters
 SPINNER_CHARS = ('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
@@ -97,11 +92,11 @@ def update_step_status(step, status, message=""):
     sys.stdout.write(f"\033[{line};0H")  # Move cursor to the beginning of the line
     sys.stdout.write("\033[K")  # Clear the line
     if status == "idle":
-        sys.stdout.write(f"{BLUE}◯ {BUILD_STEPS[step]}{NC}")
+        sys.stdout.write(f"{COLORS['BLUE']}◯ {BUILD_STEPS[step]}{COLORS['NC']}")
     elif status == "running":
-        sys.stdout.write(f"{YELLOW}{message} {BUILD_STEPS[step]}{NC}")
+        sys.stdout.write(f"{COLORS['YELLOW']}{message} {BUILD_STEPS[step]}{COLORS['NC']}")
     elif status == "completed":
-        sys.stdout.write(f"{GREEN}✓ {BUILD_STEPS[step]}{NC}")
+        sys.stdout.write(f"{COLORS['GREEN']}✓ {BUILD_STEPS[step]}{COLORS['NC']}")
     sys.stdout.write("\033[{};0H".format(len(BUILD_STEPS) + 4))  # Move cursor to the end
     sys.stdout.flush()
 
@@ -115,16 +110,82 @@ def display_spinner(step):
         task_tracker.update_task(step, "running", (spinner_index + 1) % len(SPINNER_CHARS))
         time.sleep(0.1)
 
+def is_apex_domain(domain):
+    """Check if the domain is an apex domain (not a subdomain)"""
+    # Remove protocol if present
+    if '://' in domain:
+        domain = domain.split('://')[-1]
+    
+    # Remove port if present
+    domain = domain.split(':')[0]
+    
+    # Remove trailing slash
+    domain = domain.rstrip('/')
+    
+    # Split by dots
+    parts = domain.split('.')
+    
+    # Must have at least 2 parts (domain.tld)
+    if len(parts) < 2:
+        return False
+    
+    # Check for common TLDs that might have 2 parts (like .co.uk, .com.au)
+    two_part_tlds = [
+        'co.uk', 'com.au', 'co.nz', 'co.za', 'com.br', 'co.jp',
+        'com.mx', 'co.in', 'com.sg', 'co.kr', 'com.tw', 'co.th',
+        'gov.uk', 'org.uk', 'ac.uk', 'edu.au', 'gov.au', 'org.au'
+    ]
+    
+    # If it has exactly 2 parts, it's an apex domain
+    if len(parts) == 2:
+        return True
+    
+    # If it has 3 parts, check if the last two form a known 2-part TLD
+    if len(parts) == 3:
+        last_two = '.'.join(parts[-2:])
+        return last_two.lower() in two_part_tlds
+    
+    # If it has more than 3 parts, it's likely a subdomain
+    return False
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="secOS recon script")
-    parser.add_argument("domain", nargs="?", help="The domain to scan")
-    parser.add_argument("-full", action="store_true", help="Run full scan")
-    parser.add_argument("-aws", action="store_true", help="Configure AWS and use Fireprox")
-    args = parser.parse_args()
-    if not args.domain:
-        parser.print_help()
-        return None
-    return args
+    if len(sys.argv) < 2 or sys.argv[1] in ['-h', '--help', '-help']:
+        print(f"""
+{COLORS['BLUE']}secＯ•Ｓ -- RECON Tool{COLORS['NC']}
+A comprehensive reconnaissance tool for domain analysis and security assessment.
+
+{COLORS['BLUE']}Usage:{COLORS['NC']}
+  recon example.com
+    Performs standard reconnaissance scan on the target domain
+  
+  recon example.com -full
+    Performs comprehensive reconnaissance scan with extended wordlists
+  
+  recon example.com -aws
+    Configures AWS credentials and uses Fireprox for proxy routing
+  
+  recon example.com -full -aws
+    Performs full scan with AWS integration and proxy routing
+
+{COLORS['YELLOW']}Note: Only apex domains are accepted (e.g., example.com, not sub.example.com){COLORS['NC']}
+""")
+        sys.exit(1)
+    
+    # Simple argument parsing without argparse
+    domain = sys.argv[1]
+    full_scan = '-full' in sys.argv
+    aws_mode = '-aws' in sys.argv
+    
+    # Validate that it's an apex domain
+    if not is_apex_domain(domain):
+        print(f"{COLORS['RED']}Error: Subdomains are not valid targets, use an apex domain (e.g., example.com){COLORS['NC']}")
+        sys.exit(1)
+    
+    return type('Args', (), {
+        'domain': domain,
+        'full': full_scan,
+        'aws': aws_mode
+    })()
 
 def run_command(command, output_file=None, capture_output=False):
     try:
@@ -158,9 +219,9 @@ def delete_fireprox_api(api_id):
     delete_command = ["fireprox", "--command", "delete", "--api_id", api_id]
     try:
         subprocess.run(delete_command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"{GREEN}Fireprox API Gateway (ID: {api_id}) deleted successfully{NC}")
+        print(f"{COLORS['GREEN']}Fireprox API Gateway (ID: {api_id}) deleted successfully{COLORS['NC']}")
     except subprocess.CalledProcessError:
-        print(f"{RED}Error deleting Fireprox API Gateway (ID: {api_id}){NC}")
+        print(f"{COLORS['RED']}Error deleting Fireprox API Gateway (ID: {api_id}){COLORS['NC']}")
 
 def configure_aws_and_fireprox(domain):
     def check_aws_configuration():
@@ -173,7 +234,7 @@ def configure_aws_and_fireprox(domain):
             return False
 
     if not check_aws_configuration():
-        print(f"{RED}Error: AWS credentials not found. Please run 'aws configure' to set up your credentials.{NC}")
+        print(f"{COLORS['RED']}Error: AWS credentials not found. Please run 'aws configure' to set up your credentials.{COLORS['NC']}")
         return None, None
 
     # Get the current AWS user's ARN
@@ -629,8 +690,8 @@ if __name__ == "__main__":
         
         # Print the header
         os.system('clear')        
-        print(f"{BLUE}secＯ•Ｓ -- RECON")
-        print(f"{BLUE}----------------------")
+        print(f"{COLORS['BLUE']}secＯ•Ｓ -- RECON")
+        print(f"{COLORS['BLUE']}----------------------")
         print()
                 
         for i in range(len(BUILD_STEPS)):
@@ -641,8 +702,8 @@ if __name__ == "__main__":
             proxy_url, api_id = configure_aws_and_fireprox(domain)
             if proxy_url is None:
                 sys.exit(1)
-            print(f"\n{GREEN}AWS configured successfully")
-            print(f"Fireprox proxy set up: {proxy_url}{NC}")
+            print(f"\n{COLORS['GREEN']}AWS configured successfully")
+            print(f"Fireprox proxy set up: {proxy_url}{COLORS['NC']}")
         
         # Start BBOT scan
         task_tracker.start_task(0)
@@ -667,14 +728,14 @@ if __name__ == "__main__":
             if use_aws:
                 print("\033[2A\033[J", end="")
             
-            print(f"\n{GREEN}Results saved to {domain_folder}{NC}")
+            print(f"\n{COLORS['GREEN']}Results saved to {domain_folder}{COLORS['NC']}")
         else:
-            print(f"{RED}Error: No subdomains found or BBOT scan failed.{NC}")
+            print(f"{COLORS['RED']}Error: No subdomains found or BBOT scan failed.{COLORS['NC']}")
     
     except KeyboardInterrupt:
-        print(f"\n{YELLOW}Scan interrupted by user. Cleaning up...{NC}")
+        print(f"\n{COLORS['YELLOW']}Scan interrupted by user. Cleaning up...{COLORS['NC']}")
     except Exception as e:
-        print(f"{RED}An unexpected error occurred: {str(e)}{NC}")
+        print(f"{COLORS['RED']}An unexpected error occurred: {str(e)}{COLORS['NC']}")
     finally:
         # Cleanup operations
         if api_id:
@@ -682,4 +743,4 @@ if __name__ == "__main__":
         
         clean_up(output_file, subdomains_file, *ffuf_output_files, WAFW00F_OUTPUT)
         
-        print(f"{GREEN}Scan completed.{NC}")
+        print(f"{COLORS['GREEN']}Scan completed.{COLORS['NC']}")

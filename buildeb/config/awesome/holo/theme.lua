@@ -661,6 +661,9 @@ local spr_left = wibox.widget.imagebox(theme.spr_left)
 local bar = wibox.widget.imagebox(theme.bar)
 local bottom_bar = wibox.widget.imagebox(theme.bottom_bar)
 
+-- White bullet separator
+local white_bullet = wibox.widget.textbox('<span color="#FFFFFF" font="Roboto Bold 8"> • </span>')
+
 local barcolor  = gears.color({
     type  = "linear",
     from  = { dpi(32), 0 },
@@ -728,8 +731,8 @@ function theme.at_screen_connect(s)
         { -- Right widgets
             layout = wibox.layout.fixed.horizontal,
             wibox.widget.systray(),
-            spr_right,
             rofi_bluetooth_widget,
+            white_bullet,
             rofi_net_widget,
             bar,
             prev_icon,
