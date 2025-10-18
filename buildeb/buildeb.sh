@@ -487,28 +487,68 @@ install_github_packages() {
     fi
 
     # Installing wafw00f
+    echo "=== Installing wafw00f ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - ${USERNAME} -c 'pip install wafw00f --user --break-system-packages >/dev/null 2>&1'
+        set -x
+        echo 'Installing wafw00f via pip for user ${USERNAME}...'
+        su - ${USERNAME} -c 'pip install wafw00f --user --break-system-packages'
+        echo 'Creating symlink...'
         ln -sf /home/${USERNAME}/.local/bin/wafw00f /usr/local/bin/wafw00f
+        echo 'Setting permissions...'
         chmod +x /usr/local/bin/wafw00f
-    "
+        echo 'wafw00f installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local wafw00f_exit_code=${PIPESTATUS[0]}
+    if [ $wafw00f_exit_code -ne 0 ]; then
+        echo "✗ wafw00f installation failed with exit code: $wafw00f_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "wafw00f installation failed"
+        return $wafw00f_exit_code
+    fi
 
     # Installing Arjun
+    echo "=== Installing Arjun ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - ${USERNAME} -c 'pip install arjun --user --break-system-packages >/dev/null 2>&1' &&
-        ln -sf /home/${USERNAME}/.local/bin/arjun /usr/local/bin/arjun &&
+        set -x
+        echo 'Installing Arjun via pip for user ${USERNAME}...'
+        su - ${USERNAME} -c 'pip install arjun --user --break-system-packages'
+        echo 'Creating symlink...'
+        ln -sf /home/${USERNAME}/.local/bin/arjun /usr/local/bin/arjun
+        echo 'Setting permissions...'
         chmod +x /usr/local/bin/arjun
-    "
+        echo 'Arjun installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local arjun_exit_code=${PIPESTATUS[0]}
+    if [ $arjun_exit_code -ne 0 ]; then
+        echo "✗ Arjun installation failed with exit code: $arjun_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "Arjun installation failed"
+        return $arjun_exit_code
+    fi
 
     # Installing Corsy
+    echo "=== Installing Corsy ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone --quiet https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy &&
-        cd /usr/local/bin/.corsy &&
-        pip install -r requirements.txt --break-system-packages >/dev/null 2>&1 &&
-        echo '#!/bin/bash' > /usr/local/bin/corsy &&
-        echo 'python3 /usr/local/bin/.corsy/corsy.py \"\$@\"' >> /usr/local/bin/corsy &&
+        set -x
+        echo 'Cloning Corsy repository...'
+        git clone https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy
+        echo 'Installing requirements...'
+        cd /usr/local/bin/.corsy
+        pip install -r requirements.txt --break-system-packages
+        echo 'Creating wrapper script...'
+        echo '#!/bin/bash' > /usr/local/bin/corsy
+        echo 'python3 /usr/local/bin/.corsy/corsy.py \"\$@\"' >> /usr/local/bin/corsy
+        echo 'Setting permissions...'
         chmod +x /usr/local/bin/corsy
-    "
+        echo 'Corsy installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local corsy_exit_code=${PIPESTATUS[0]}
+    if [ $corsy_exit_code -ne 0 ]; then
+        echo "✗ Corsy installation failed with exit code: $corsy_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "Corsy installation failed"
+        return $corsy_exit_code
+    fi
 
     # Installing FireProx and AWS CLI
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
