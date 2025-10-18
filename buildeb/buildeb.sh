@@ -331,31 +331,54 @@ install_external_packages_with_debug() {
 }
 
 install_github_packages() {
-    echo "Installing Github packages..."
+    echo "Installing Github packages..." | tee -a "${DEBUG_LOG}"
+    debug_info "Starting GitHub packages installation"
+    
     # Installing Wifite2
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+    echo "Installing Wifite2..." | tee -a "${DEBUG_LOG}"
+    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         git clone --quiet https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2 &&
         ln -sf /usr/local/bin/.wifite2/Wifite.py /usr/local/bin/wifite &&
         ln -sf /usr/bin/python3 /usr/bin/python
-    " >/dev/null 2>&1
+    " 2>&1 | tee -a "${DEBUG_LOG}"; then
+        echo "✓ Wifite2 installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ Wifite2 installation failed" | tee -a "${DEBUG_LOG}"
+        debug_info "Wifite2 installation failed"
+        return 1
+    fi
 
     # Installing ffuf
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+    echo "Installing ffuf..." | tee -a "${DEBUG_LOG}"
+    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         wget -q https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz &&
         mkdir -p /usr/local/bin/.ffuf &&
         tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf &&
         ln -sf /usr/local/bin/.ffuf/ffuf /usr/local/bin/ffuf &&
         rm /tmp/ffuf.tar.gz
-    " >/dev/null 2>&1
+    " 2>&1 | tee -a "${DEBUG_LOG}"; then
+        echo "✓ ffuf installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ ffuf installation failed" | tee -a "${DEBUG_LOG}"
+        debug_info "ffuf installation failed"
+        return 1
+    fi
 
     # Installing gospider
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+    echo "Installing gospider..." | tee -a "${DEBUG_LOG}"
+    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         wget -q https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip &&
         unzip -q /tmp/gospider.zip -d /tmp/gospider &&
         mv /tmp/gospider/gospider_v1.1.6_linux_x86_64/gospider /usr/local/bin/gospider &&
         chmod +x /usr/local/bin/gospider &&
         rm -rf /tmp/gospider /tmp/gospider.zip
-    " >/dev/null 2>&1
+    " 2>&1 | tee -a "${DEBUG_LOG}"; then
+        echo "✓ gospider installed successfully" | tee -a "${DEBUG_LOG}"
+    else
+        echo "✗ gospider installation failed" | tee -a "${DEBUG_LOG}"
+        debug_info "gospider installation failed"
+        return 1
+    fi
 
     # Installing dnsReaper
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
