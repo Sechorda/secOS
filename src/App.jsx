@@ -26,7 +26,7 @@ export default function App() {
         />
         
         <div className="version">
-          Latest Release: 1.0.1 beta
+          Latest Release: 1.0.5-beta
         </div>
 
         <div className="downloads-container">
