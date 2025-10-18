@@ -551,20 +551,34 @@ install_github_packages() {
     fi
 
     # Installing FireProx and AWS CLI
+    echo "=== Installing FireProx and AWS CLI ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone --quiet https://github.com/ustayready/fireprox /usr/local/bin/.fireprox &&
-        cd /usr/local/bin/.fireprox &&
-        pip3 install -r requirements.txt --break-system-packages >/dev/null 2>&1 &&
-        echo '#!/bin/bash' > /usr/local/bin/fireprox &&
-        echo 'python3 /usr/local/bin/.fireprox/fire.py \"\$@\"' >> /usr/local/bin/fireprox &&
-        chmod +x /usr/local/bin/fireprox &&
+        set -x
+        echo 'Cloning FireProx repository...'
+        git clone https://github.com/ustayready/fireprox /usr/local/bin/.fireprox
+        echo 'Installing FireProx requirements...'
+        cd /usr/local/bin/.fireprox
+        pip3 install -r requirements.txt --break-system-packages
+        echo 'Creating FireProx wrapper script...'
+        echo '#!/bin/bash' > /usr/local/bin/fireprox
+        echo 'python3 /usr/local/bin/.fireprox/fire.py \"\$@\"' >> /usr/local/bin/fireprox
+        chmod +x /usr/local/bin/fireprox
+        echo 'FireProx installation completed'
         
-        # Installing AWS CLI
-        curl -s 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' &&
-        unzip -q awscliv2.zip &&
-        ./aws/install >/dev/null 2>&1 &&
+        echo 'Installing AWS CLI...'
+        curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip'
+        unzip awscliv2.zip
+        ./aws/install
         rm -rf aws awscliv2.zip
-    "
+        echo 'AWS CLI installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local fireprox_aws_exit_code=${PIPESTATUS[0]}
+    if [ $fireprox_aws_exit_code -ne 0 ]; then
+        echo "✗ FireProx/AWS CLI installation failed with exit code: $fireprox_aws_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "FireProx/AWS CLI installation failed"
+        return $fireprox_aws_exit_code
+    fi
 
     # Installing ronema (local)
     sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema"
