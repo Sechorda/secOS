@@ -335,59 +335,92 @@ install_github_packages() {
     debug_info "Starting GitHub packages installation"
     
     # Installing Wifite2
-    echo "Installing Wifite2..." | tee -a "${DEBUG_LOG}"
-    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone --quiet https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2 &&
-        ln -sf /usr/local/bin/.wifite2/Wifite.py /usr/local/bin/wifite &&
+    echo "=== Installing Wifite2 ===" | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Cloning Wifite2 repository...'
+        git clone https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2
+        echo 'Creating symlinks...'
+        ln -sf /usr/local/bin/.wifite2/Wifite.py /usr/local/bin/wifite
         ln -sf /usr/bin/python3 /usr/bin/python
-    " 2>&1 | tee -a "${DEBUG_LOG}"; then
-        echo "✓ Wifite2 installed successfully" | tee -a "${DEBUG_LOG}"
-    else
-        echo "✗ Wifite2 installation failed" | tee -a "${DEBUG_LOG}"
+        echo 'Wifite2 installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local wifite_exit_code=${PIPESTATUS[0]}
+    if [ $wifite_exit_code -ne 0 ]; then
+        echo "✗ Wifite2 installation failed with exit code: $wifite_exit_code" | tee -a "${DEBUG_LOG}"
         debug_info "Wifite2 installation failed"
-        return 1
+        return $wifite_exit_code
     fi
 
     # Installing ffuf
-    echo "Installing ffuf..." | tee -a "${DEBUG_LOG}"
-    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget -q https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz &&
-        mkdir -p /usr/local/bin/.ffuf &&
-        tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf &&
-        ln -sf /usr/local/bin/.ffuf/ffuf /usr/local/bin/ffuf &&
+    echo "=== Installing ffuf ===" | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Downloading ffuf...'
+        wget https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz
+        echo 'Creating directory and extracting...'
+        mkdir -p /usr/local/bin/.ffuf
+        tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf
+        echo 'Creating symlink...'
+        ln -sf /usr/local/bin/.ffuf/ffuf /usr/local/bin/ffuf
+        echo 'Cleaning up...'
         rm /tmp/ffuf.tar.gz
-    " 2>&1 | tee -a "${DEBUG_LOG}"; then
-        echo "✓ ffuf installed successfully" | tee -a "${DEBUG_LOG}"
-    else
-        echo "✗ ffuf installation failed" | tee -a "${DEBUG_LOG}"
+        echo 'ffuf installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local ffuf_exit_code=${PIPESTATUS[0]}
+    if [ $ffuf_exit_code -ne 0 ]; then
+        echo "✗ ffuf installation failed with exit code: $ffuf_exit_code" | tee -a "${DEBUG_LOG}"
         debug_info "ffuf installation failed"
-        return 1
+        return $ffuf_exit_code
     fi
 
     # Installing gospider
-    echo "Installing gospider..." | tee -a "${DEBUG_LOG}"
-    if sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget -q https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip &&
-        unzip -q /tmp/gospider.zip -d /tmp/gospider &&
-        mv /tmp/gospider/gospider_v1.1.6_linux_x86_64/gospider /usr/local/bin/gospider &&
-        chmod +x /usr/local/bin/gospider &&
+    echo "=== Installing gospider ===" | tee -a "${DEBUG_LOG}"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Downloading gospider...'
+        wget https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip
+        echo 'Extracting...'
+        unzip /tmp/gospider.zip -d /tmp/gospider
+        echo 'Moving binary...'
+        mv /tmp/gospider/gospider_v1.1.6_linux_x86_64/gospider /usr/local/bin/gospider
+        echo 'Setting permissions...'
+        chmod +x /usr/local/bin/gospider
+        echo 'Cleaning up...'
         rm -rf /tmp/gospider /tmp/gospider.zip
-    " 2>&1 | tee -a "${DEBUG_LOG}"; then
-        echo "✓ gospider installed successfully" | tee -a "${DEBUG_LOG}"
-    else
-        echo "✗ gospider installation failed" | tee -a "${DEBUG_LOG}"
+        echo 'gospider installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local gospider_exit_code=${PIPESTATUS[0]}
+    if [ $gospider_exit_code -ne 0 ]; then
+        echo "✗ gospider installation failed with exit code: $gospider_exit_code" | tee -a "${DEBUG_LOG}"
         debug_info "gospider installation failed"
-        return 1
+        return $gospider_exit_code
     fi
 
     # Installing dnsReaper
+    echo "=== Installing dnsReaper ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone --quiet https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper &&
-        cd /usr/local/bin/.dnsReaper &&
-        pip install -r requirements.txt --break-system-packages >/dev/null 2>&1 &&
-        chmod +x main.py &&
+        set -x
+        echo 'Cloning dnsReaper repository...'
+        git clone https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper
+        echo 'Installing requirements...'
+        cd /usr/local/bin/.dnsReaper
+        pip install -r requirements.txt --break-system-packages
+        echo 'Setting permissions and creating symlink...'
+        chmod +x main.py
         ln -sf /usr/local/bin/.dnsReaper/main.py /usr/local/bin/dnsreaper
-    "
+        echo 'dnsReaper installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local dnsreaper_exit_code=${PIPESTATUS[0]}
+    if [ $dnsreaper_exit_code -ne 0 ]; then
+        echo "✗ dnsReaper installation failed with exit code: $dnsreaper_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "dnsReaper installation failed"
+        return $dnsreaper_exit_code
+    fi
 
     # Installing jsluice
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
