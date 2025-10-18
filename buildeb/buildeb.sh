@@ -581,66 +581,106 @@ install_github_packages() {
     fi
 
     # Installing ronema (local)
-    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema"
-    sudo cp -r "${PWD}/config/ronema/src"/* "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema/"
+    echo "=== Installing ronema (local) ===" | tee -a "${DEBUG_LOG}"
+    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema" 2>&1 | tee -a "${DEBUG_LOG}"
+    sudo cp -r "${PWD}/config/ronema/src"/* "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema/" 2>&1 | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Setting up ronema...'
         cp /home/${USERNAME}/.config/ronema/ronema /usr/local/bin/ronema
         cp /home/${USERNAME}/.config/ronema/roblma /usr/local/bin/roblma
         chmod +x /usr/local/bin/ronema
         chmod +x /usr/local/bin/roblma
         chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config/ronema
-    " >/dev/null 2>&1
+        echo 'ronema installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Copying recon (local)
-    sudo cp -r "../recon" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/.recon"
+    echo "=== Installing recon (local) ===" | tee -a "${DEBUG_LOG}"
+    sudo cp -r "../recon" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/.recon" 2>&1 | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Setting up recon...'
         chmod +x /usr/local/bin/.recon/recon.py
-        ln -sf /usr/local/bin/.recon/recon.py /usr/local/bin/recon 
-    " >/dev/null 2>&1
+        ln -sf /usr/local/bin/.recon/recon.py /usr/local/bin/recon
+        echo 'recon installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Copying infra (local)
-    sudo cp "../infra/infra.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/infra.py"
+    echo "=== Installing infra (local) ===" | tee -a "${DEBUG_LOG}"
+    sudo cp "../infra/infra.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/infra.py" 2>&1 | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Setting up infra...'
         chmod +x /usr/local/bin/infra.py
-        ln -sf /usr/local/bin/infra.py /usr/local/bin/infra 
-        pip3 install cloudflare python-dotenv boto3 questionary botocore --break-system-packages >/dev/null 2>&1
-    "
+        ln -sf /usr/local/bin/infra.py /usr/local/bin/infra
+        echo 'Installing infra dependencies...'
+        pip3 install cloudflare python-dotenv boto3 questionary botocore --break-system-packages
+        echo 'infra installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Copying osint (local)
-    sudo cp "../OSINT/osint.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/osint.py"
+    echo "=== Installing osint (local) ===" | tee -a "${DEBUG_LOG}"
+    sudo cp "../OSINT/osint.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/osint.py" 2>&1 | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Setting up osint...'
         chmod +x /usr/local/bin/osint.py
-        ln -sf /usr/local/bin/osint.py /usr/local/bin/osint 
-        pip3 install requests beautifulsoup4 cloudscraper --break-system-packages >/dev/null 2>&1
-    "
+        ln -sf /usr/local/bin/osint.py /usr/local/bin/osint
+        echo 'Installing osint dependencies...'
+        pip3 install requests beautifulsoup4 cloudscraper --break-system-packages
+        echo 'osint installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Installing bbot and configuring pipx path for mist user
+    echo "=== Installing bbot ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-       su - mist -c 'pipx install bbot >/dev/null 2>&1'
-    "
+        set -x
+        echo 'Installing bbot via pipx for user mist...'
+        su - mist -c 'pipx install bbot'
+        echo 'bbot installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Installing Spiderfoot
+    echo "=== Installing Spiderfoot ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone --quiet https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot &&
-        cd /usr/local/bin/.spiderfoot &&
-        pip3 install -r requirements.txt --break-system-packages >/dev/null 2>&1 &&
-        echo '#!/bin/bash' > /usr/local/bin/spiderfoot &&
-        echo 'python3 /usr/local/bin/.spiderfoot/sf.py \"\$@\"' >> /usr/local/bin/spiderfoot &&
+        set -x
+        echo 'Cloning Spiderfoot repository...'
+        git clone https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot
+        echo 'Installing Spiderfoot requirements...'
+        cd /usr/local/bin/.spiderfoot
+        pip3 install -r requirements.txt --break-system-packages
+        echo 'Creating Spiderfoot wrapper script...'
+        echo '#!/bin/bash' > /usr/local/bin/spiderfoot
+        echo 'python3 /usr/local/bin/.spiderfoot/sf.py \"\$@\"' >> /usr/local/bin/spiderfoot
         chmod +x /usr/local/bin/spiderfoot
-    "
+        echo 'Spiderfoot installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Installing RF-Lockpick (local)
-    sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick"
-    sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf"
+    echo "=== Installing RF-Lockpick (local) ===" | tee -a "${DEBUG_LOG}"
+    sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick" 2>&1 | tee -a "${DEBUG_LOG}"
+    sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf" 2>&1 | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Installing RF-Lockpick dependencies...'
         pip3 install flask flask-cors flask-socketio python-dotenv requests --break-system-packages
+        echo 'Setting permissions...'
         chmod +x /usr/local/bin/rf
-    "
+        echo 'RF-Lockpick installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
 
     # Ensure all users can access the installed tools
+    echo "=== Setting final permissions ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        set -x
+        echo 'Setting permissions for all tools...'
         chmod -R 755 /usr/local/bin
-    "
+        echo 'All GitHub packages installation completed successfully'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    echo "✓ All GitHub packages installed successfully" | tee -a "${DEBUG_LOG}"
+    debug_info "GitHub packages installation completed"
 }
 
 configure_system() {
