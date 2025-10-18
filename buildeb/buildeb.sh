@@ -72,7 +72,7 @@ CUSTOM_PROGRAMS=(
     firmware-linux-nonfree firmware-iwlwifi xorg xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all alsa-utils playerctl
     gobject-introspection liblightdm-gobject-1-0 liblightdm-gobject-dev libgirepository1.0-dev libcairo2 libcairo2-dev
     libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 libkf5package5 libkf5parts5 
-    libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6 libyaml-cpp0.7
+    libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
     udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez
 )
@@ -423,28 +423,68 @@ install_github_packages() {
     fi
 
     # Installing jsluice
+    echo "=== Installing jsluice ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/BishopFox/jsluice/cmd/jsluice@latest >/dev/null 2>&1 &&
-        mv /root/go/bin/jsluice /usr/local/bin/.jsluice &&
-        ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice &&
+        set -x
+        echo 'Installing jsluice via go install...'
+        go install -v github.com/BishopFox/jsluice/cmd/jsluice@latest
+        echo 'Moving binary and creating symlink...'
+        mv /root/go/bin/jsluice /usr/local/bin/.jsluice
+        ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice
+        echo 'Cleaning up...'
         rm -rf /root/go
-    "
+        echo 'jsluice installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local jsluice_exit_code=${PIPESTATUS[0]}
+    if [ $jsluice_exit_code -ne 0 ]; then
+        echo "✗ jsluice installation failed with exit code: $jsluice_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "jsluice installation failed"
+        return $jsluice_exit_code
+    fi
 
     # Installing shortscan
+    echo "=== Installing shortscan ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/bitquark/shortscan/cmd/shortscan@latest >/dev/null 2>&1 &&
-        mv /root/go/bin/shortscan /usr/local/bin/shortscan &&
+        set -x
+        echo 'Installing shortscan via go install...'
+        go install -v github.com/bitquark/shortscan/cmd/shortscan@latest
+        echo 'Moving binary...'
+        mv /root/go/bin/shortscan /usr/local/bin/shortscan
+        echo 'Cleaning up...'
         rm -rf /root/go
-    "
+        echo 'shortscan installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local shortscan_exit_code=${PIPESTATUS[0]}
+    if [ $shortscan_exit_code -ne 0 ]; then
+        echo "✗ shortscan installation failed with exit code: $shortscan_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "shortscan installation failed"
+        return $shortscan_exit_code
+    fi
 
     # Installing CloudBrute
+    echo "=== Installing CloudBrute ===" | tee -a "${DEBUG_LOG}"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget -q https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz &&
-        mkdir -p /usr/local/bin/.cloudbrute &&
-        tar -xf /tmp/cloudbrute.tar.gz -C /usr/local/bin/.cloudbrute >/dev/null 2>&1 &&
-        ln -sf /usr/local/bin/.cloudbrute/cloudbrute /usr/local/bin/cloudbrute &&
+        set -x
+        echo 'Downloading CloudBrute...'
+        wget https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz
+        echo 'Creating directory and extracting...'
+        mkdir -p /usr/local/bin/.cloudbrute
+        tar -xf /tmp/cloudbrute.tar.gz -C /usr/local/bin/.cloudbrute
+        echo 'Creating symlink...'
+        ln -sf /usr/local/bin/.cloudbrute/cloudbrute /usr/local/bin/cloudbrute
+        echo 'Cleaning up...'
         rm /tmp/cloudbrute.tar.gz
-    "
+        echo 'CloudBrute installation completed'
+    " 2>&1 | tee -a "${DEBUG_LOG}"
+    
+    local cloudbrute_exit_code=${PIPESTATUS[0]}
+    if [ $cloudbrute_exit_code -ne 0 ]; then
+        echo "✗ CloudBrute installation failed with exit code: $cloudbrute_exit_code" | tee -a "${DEBUG_LOG}"
+        debug_info "CloudBrute installation failed"
+        return $cloudbrute_exit_code
+    fi
 
     # Installing wafw00f
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
