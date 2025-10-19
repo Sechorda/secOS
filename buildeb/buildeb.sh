@@ -7,7 +7,6 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
-# LIVE_BOOT_DIR will be set in bootstrap_debian()
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
@@ -25,11 +24,6 @@ CUSTOM_PROGRAMS=(
     libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
     udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez nemo
-
-    # Build deps added to avoid duplicate apt installs (Kismet build will run after these are installed)
-    build-essential cmake pkg-config git python3-dev python3-pip
-    libnl-3-dev libnl-genl-3-dev libpcap-dev libcap-ng-dev libprotobuf-dev protobuf-compiler libprotobuf-c-dev libsqlite3-dev
-    libmicrohttpd-dev libwebsockets-dev libusb-1.0-0-dev librtlsdr-dev libpcre2-dev libsensors-dev libbtbb-dev libmosquitto-dev
 )
 
 bootstrap_debian() {
@@ -72,9 +66,6 @@ install_kernel_and_packages() {
 
 install_external_packages() {
     echo "Installing external packages..."
-
-    # Build Kismet first to surface build issues early (robust CI-safe logic)
-    # Kismet build/install commented out per request to disable Kismet compilation.
     
     # Installing Wifite2
     echo "Installing Wifite2..."
@@ -176,9 +167,6 @@ install_external_packages() {
         ./aws/install
         rm -rf aws awscliv2.zip
     "
-
-    # Installing local tools
-    echo "Installing local tools..."
     
     # ronema
     sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema"
@@ -240,53 +228,34 @@ install_external_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod -R 755 /usr/local/bin
     "
-
-    # External package installations
-    echo "Installing external packages..."
     
     # Nody-Greeter install
     echo "Installing Nody-Greeter..."
-    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"; then
-        echo "✓ Nody-Greeter downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/nody-greeter.deb
-            rm /tmp/nody-greeter.deb
-        "
-    else
-        echo "✗ Failed to download Nody-Greeter"
-    fi
+    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        dpkg -i /tmp/nody-greeter.deb || true
+        rm -f /tmp/nody-greeter.deb
+    "
 
     # Obsidian install
     echo "Installing Obsidian..."
-    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"; then
-        echo "✓ Obsidian downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/obsidian.deb || apt-get install -f -y
-            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian
-            rm /tmp/obsidian.deb
-        "
-    else
-        echo "✗ Failed to download Obsidian"
-    fi
+    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        dpkg -i /tmp/obsidian.deb || apt-get install -f -y
+        ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian
+        rm -f /tmp/obsidian.deb
+    "
 
     # Caido CLI install
     echo "Installing Caido CLI..."
-    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL"; then
-        echo "✓ Caido CLI downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            cd /tmp &&
-            tar -xzf caido-cli.tar.gz &&
-            mv caido-cli /usr/local/bin/caido-cli &&
-            chmod +x /usr/local/bin/caido-cli &&
-            rm caido-cli.tar.gz
-        "
-    else
-        echo "✗ Failed to download Caido CLI"
-    fi
-
-    echo "✓ External packages installed"
-
-    echo "✓ GitHub packages installation completed"
+    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL"
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        cd /tmp &&
+        tar -xzf caido-cli.tar.gz &&
+        mv caido-cli /usr/local/bin/caido-cli &&
+        chmod +x /usr/local/bin/caido-cli &&
+        rm -f caido-cli.tar.gz
+    "
 }
 
 configure_system() {
@@ -296,7 +265,6 @@ configure_system() {
 
     # Set hostname
     echo "${HOSTNAME}" | sudo tee "${LIVE_BOOT_DIR}/chroot/etc/hostname"
-    echo "${HOSTS}" | sudo tee "${LIVE_BOOT_DIR}/chroot/etc/hosts"
     echo "export DISPLAY=:0" | sudo tee -a "${LIVE_BOOT_DIR}/chroot/etc/profile.d/display.sh"
 
     # Configure paths for all users
