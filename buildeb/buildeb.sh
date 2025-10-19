@@ -104,7 +104,7 @@ install_kernel_and_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         mkdir -p /usr/share/keyrings
         curl -fsSL https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor -o /usr/share/keyrings/kismet-archive-keyring.gpg
-        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' > /etc/apt/sources.list.d/kismet.list
+        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/noble noble main' > /etc/apt/sources.list.d/kismet.list
     " >/dev/null 2>&1
     
     # Update package lists

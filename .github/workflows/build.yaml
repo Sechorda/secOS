@@ -27,6 +27,7 @@ jobs:
           mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
         curl https://rclone.org/install.sh | sudo bash
 
+
     - name: Build secOS (verbose)
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
