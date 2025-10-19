@@ -17,26 +17,13 @@
 
 # Summary
 [wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
+[Download secOS](https://sec-os.com)<br>
 
 secOS is a Debian-based Linux distribution for cybersecurity researchers. It combines essential penetration testing and bug bounty tools into a pre-configured metaframework, emphasizing minimalism and efficiency. The lightweight design enables security practitioners to focus on testing rather than setup and configuration.
 
 <img width="2871" height="2158" alt="image" src="https://github.com/user-attachments/assets/8889a40b-1f2f-440b-a577-04edab05d686" />
 
 
----
-
-# Build secOS
-### `buildeb.sh`
-
-Build secOS yourself with the buildeb.sh bash script
-  <br>
-  Tested on debian12
-  </br>
-  Download prebuilt .ISO/.VMDK at https://sec-os.com
-  
-![buildeb](https://github.com/Sechorda/secOS/blob/gh-pages/images/buildeb.png)
-
----
 
 # RECON
 ### `recon.py`
