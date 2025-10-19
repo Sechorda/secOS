@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-
 set -e  # Exit immediately if a command exits with a non-zero status
-
-trap 'rm -rf "${LIVE_BOOT_DIR}"' EXIT  # Clean up on exit
-
-echo "=== Starting secOS Build Process ==="
 
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
@@ -12,12 +7,7 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
-# Try current directory first, fall back to /tmp if needed
-if mkdir -p "${PWD}/LIVE_BOOT" 2>/dev/null; then
-    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
-else
-    LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
-fi
+# LIVE_BOOT_DIR will be set in bootstrap_debian()
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
@@ -42,111 +32,40 @@ CUSTOM_PROGRAMS=(
     libmicrohttpd-dev libwebsockets-dev libusb-1.0-0-dev librtlsdr-dev libpcre2-dev libsensors-dev libbtbb-dev libmosquitto-dev
 )
 
-setup_build_env() {
-    echo "Setting up build environment..."
-    if [ -f "${ISO_NAME}" ]; then
-        rm "${ISO_NAME}"
-    fi
-    
-    sudo apt-get update >/dev/null 2>&1
-    sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip >/dev/null 2>&1
-}
 
 bootstrap_debian() {
     echo "Bootstrapping Debian..."
+    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
     mkdir -p "${LIVE_BOOT_DIR}"
     sudo debootstrap --arch=amd64 --variant=minbase stable \
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
+
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
+        "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd && sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list && export DEBIAN_FRONTEND=noninteractive"
+    
+    # Add Spotify repository (refresh package lists)
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
+        curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
+        apt-get update >/dev/null 2>&1
+    " >/dev/null 2>&1
 }
 
 install_kernel_and_packages() {
     echo "Installing kernel and packages..."
     
-    # Create user
-    echo "Creating user ${USERNAME}..."
-    if sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1; then
-        echo "✓ User ${USERNAME} created"
-    else
-        echo "✗ Failed to create user ${USERNAME}"
-        return 1
-    fi
-
-    # Set passwords
-    echo "Setting user passwords..."
-    echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" >/dev/null 2>&1
-    echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
-
-    # Configure repositories
-    echo "Configuring repositories..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" >/dev/null 2>&1
-
-    # Install basic tools first
-    echo "Installing basic tools (curl, gpg)..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && apt-get update >/dev/null 2>&1 && apt-get install -y curl gpg >/dev/null 2>&1"
-    
-    if [ $? -eq 0 ]; then
-        echo "✓ Basic tools installed successfully"
-    else
-        echo "✗ Failed to install basic tools"
-        return 1
-    fi
-    
-    # Add external repositories
-    echo "Adding external repositories..."
-    
-    # Add Spotify repository
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
-        echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
-    " >/dev/null 2>&1
-    
-    echo "Kismet build moved to install_github_packages to run after other GitHub installs"
-    
-    # Update package lists
-    echo "Updating package lists..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && apt-get clean >/dev/null 2>&1 && apt-get update >/dev/null 2>&1"
-    
-    # Install kernel first (most critical)
+    # Install kernel
     echo "Installing Linux kernel..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
         apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv >/dev/null 2>&1"
     
-    local kernel_exit_code=$?
-    if [ $kernel_exit_code -eq 0 ]; then
-        echo "✓ Kernel installed successfully"
-    else
-        echo "✗ Kernel installation failed with exit code: $kernel_exit_code"
-        return $kernel_exit_code
-    fi
-    
     # Install all packages from CUSTOM_PROGRAMS array
-    echo "Installing all packages..."
-    
-    # Install packages while streaming full output to stdout (visible in GitHub Actions logs)
-    # and also saving to /tmp/pkg_install.log inside the chroot for later inspection.
+    echo "Installing APT packages..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
-        -o Debug::pkgProblemResolver=true -o Debug::Acquire::http=true \
-        install ${CUSTOM_PROGRAMS[*]} 2>&1 | tee /tmp/pkg_install.log"
-    
-    local packages_exit_code=$?
-    if [ $packages_exit_code -eq 0 ]; then
-        echo "✓ All packages installed successfully"
-    else
-        echo "✗ Some packages installation failed. Showing last 200 lines of /tmp/pkg_install.log from chroot:"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "tail -n 200 /tmp/pkg_install.log" || true
-        echo "Full log is available at ${LIVE_BOOT_DIR}/chroot/tmp/pkg_install.log"
-        return $packages_exit_code
-    fi
-    
+        apt-get -qq --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
+        install ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1"
 }
 
 
@@ -359,7 +278,7 @@ install_external_packages() {
         chmod -R 755 /usr/local/bin
     " >/dev/null 2>&1
 
-    # External package installations (moved from install_external_packages)
+    # External package installations
     echo "Installing external packages..."
     
     # Nody-Greeter install
@@ -552,14 +471,8 @@ create_iso() {
 }
     
 main() {
-    # Check and remove existing temporary directory if it exists
-    if [ -d "${LIVE_BOOT_DIR}" ]; then
-        sudo rm -rf "${LIVE_BOOT_DIR}"
-    fi
-    
     echo "Starting secOS build process..."
     
-    setup_build_env
     bootstrap_debian
     install_kernel_and_packages
     install_external_packages
