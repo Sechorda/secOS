@@ -40,10 +40,13 @@ bootstrap_debian() {
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
 
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd && sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list && export DEBIAN_FRONTEND=noninteractive"
+        "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd && export DEBIAN_FRONTEND=noninteractive"
     
     # Add Spotify repository (refresh package lists)
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+        sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
+        apt-get update
+        apt-get install -y curl gnupg
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
         curl -fL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
         apt-get update
