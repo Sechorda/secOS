@@ -32,13 +32,12 @@ CUSTOM_PROGRAMS=(
     libmicrohttpd-dev libwebsockets-dev libusb-1.0-0-dev librtlsdr-dev libpcre2-dev libsensors-dev libbtbb-dev libmosquitto-dev
 )
 
-
 bootstrap_debian() {
     echo "Bootstrapping Debian..."
     LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
     mkdir -p "${LIVE_BOOT_DIR}"
     sudo debootstrap --arch=amd64 --variant=minbase stable \
-        "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
+        "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
 
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd && sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list && export DEBIAN_FRONTEND=noninteractive"
@@ -46,9 +45,9 @@ bootstrap_debian() {
     # Add Spotify repository (refresh package lists)
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
-        curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
-        apt-get update >/dev/null 2>&1
-    " >/dev/null 2>&1
+        curl -fL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
+        apt-get update
+    "
 }
 
 install_kernel_and_packages() {
@@ -58,265 +57,226 @@ install_kernel_and_packages() {
     echo "Installing Linux kernel..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv >/dev/null 2>&1"
+        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv"
     
     # Install all packages from CUSTOM_PROGRAMS array
     echo "Installing APT packages..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get -qq --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
-        install ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1"
+        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
+        install ${CUSTOM_PROGRAMS[*]}"
 }
-
 
 install_external_packages() {
     echo "Installing external packages..."
 
     # Build Kismet first to surface build issues early (robust CI-safe logic)
     # Kismet build/install commented out per request to disable Kismet compilation.
-    # echo "Building and installing Kismet from source inside chroot (early)..."
-    # sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
-# set -e
-# export DEBIAN_FRONTEND=noninteractive
-#
-# cd /tmp || exit 1
-# rm -rf kismet
-#
-# # Clone with submodules (fallback ensures submodules initialized)
-# git clone --depth 1 --recurse-submodules https://www.kismetwireless.net/git/kismet.git kismet || {
-#   git clone --depth 1 https://www.kismetwireless.net/git/kismet.git kismet
-#   (cd kismet && git submodule update --init --recursive) || true
-# }
-#
-# cd kismet || { echo "kismet dir missing; skipping build" >&2; exit 0; }
-#
-# # Prefer upstream top-level build flow
-# if [ -x ./configure ]; then
-#   ./configure
-#   make -j"$(nproc)"
-#   make install
-#   ldconfig
-#   exit 0
-# fi
-#
-# # Fallback to locating a CMakeLists.txt and building with CMake
-# cmake_file="$(find . -maxdepth 6 -type f -name CMakeLists.txt -print -quit || true)"
-# if [ -n "${cmake_file}" ]; then
-#   src_dir="$(cd "$(dirname "${cmake_file}")" && pwd)"
-#   mkdir -p build && cd build
-#   cmake "${src_dir}"
-#   make -j"$(nproc)"
-#   make install
-#   ldconfig
-# else
-#   echo "ERROR: No top-level configure or CMakeLists.txt found for Kismet; skipping build" >&2
-# fi
-# '
     
     # Installing Wifite2
     echo "Installing Wifite2..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2 >/dev/null 2>&1
+        git clone https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2
         ln -sf /usr/local/bin/.wifite2/Wifite.py /usr/local/bin/wifite
         ln -sf /usr/bin/python3 /usr/bin/python
-    " >/dev/null 2>&1
+    "
 
     # Installing ffuf
     echo "Installing ffuf..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz >/dev/null 2>&1
+        wget https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz
         mkdir -p /usr/local/bin/.ffuf
-        tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf >/dev/null 2>&1
+        tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf
         ln -sf /usr/local/bin/.ffuf/ffuf /usr/local/bin/ffuf
         rm /tmp/ffuf.tar.gz
-    " >/dev/null 2>&1
+    "
 
     # Installing gospider
     echo "Installing gospider..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip >/dev/null 2>&1
-        unzip /tmp/gospider.zip -d /tmp/gospider >/dev/null 2>&1
+        wget https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip
+        unzip /tmp/gospider.zip -d /tmp/gospider
         mv /tmp/gospider/gospider_v1.1.6_linux_x86_64/gospider /usr/local/bin/gospider
         chmod +x /usr/local/bin/gospider
         rm -rf /tmp/gospider /tmp/gospider.zip
-    " >/dev/null 2>&1
+    "
 
     # Installing dnsReaper
     echo "Installing dnsReaper..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper >/dev/null 2>&1
+        git clone https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper
         cd /usr/local/bin/.dnsReaper
-        pip install -r requirements.txt --break-system-packages >/dev/null 2>&1
+        pip install -r requirements.txt --break-system-packages
         chmod +x main.py
         ln -sf /usr/local/bin/.dnsReaper/main.py /usr/local/bin/dnsreaper
-    " >/dev/null 2>&1
+    "
 
     # Installing jsluice
     echo "Installing jsluice..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/BishopFox/jsluice/cmd/jsluice@latest >/dev/null 2>&1
+        go install -v github.com/BishopFox/jsluice/cmd/jsluice@latest
         mv /root/go/bin/jsluice /usr/local/bin/.jsluice
         ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice
         rm -rf /root/go
-    " >/dev/null 2>&1
+    "
 
     # Installing shortscan
     echo "Installing shortscan..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/bitquark/shortscan/cmd/shortscan@latest >/dev/null 2>&1
+        go install -v github.com/bitquark/shortscan/cmd/shortscan@latest
         mv /root/go/bin/shortscan /usr/local/bin/shortscan
         rm -rf /root/go
-    " >/dev/null 2>&1
+    "
 
     # Installing CloudBrute
     echo "Installing CloudBrute..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz >/dev/null 2>&1
+        wget https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz
         mkdir -p /usr/local/bin/.cloudbrute
-        tar -xf /tmp/cloudbrute.tar.gz -C /usr/local/bin/.cloudbrute >/dev/null 2>&1
+        tar -xf /tmp/cloudbrute.tar.gz -C /usr/local/bin/.cloudbrute
         ln -sf /usr/local/bin/.cloudbrute/cloudbrute /usr/local/bin/cloudbrute
         rm /tmp/cloudbrute.tar.gz
-    " >/dev/null 2>&1
+    "
 
     # Installing wafw00f and Arjun via pip
     echo "Installing wafw00f and Arjun..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - ${USERNAME} -c 'pip install wafw00f arjun --user --break-system-packages' >/dev/null 2>&1
+        su - ${USERNAME} -c 'pip install wafw00f arjun --user --break-system-packages'
         ln -sf /home/${USERNAME}/.local/bin/wafw00f /usr/local/bin/wafw00f
         ln -sf /home/${USERNAME}/.local/bin/arjun /usr/local/bin/arjun
         chmod +x /usr/local/bin/wafw00f /usr/local/bin/arjun
-    " >/dev/null 2>&1
+    "
 
     # Installing Corsy
     echo "Installing Corsy..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy >/dev/null 2>&1
+        git clone https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy
         cd /usr/local/bin/.corsy
-        pip install -r requirements.txt --break-system-packages >/dev/null 2>&1
+        pip install -r requirements.txt --break-system-packages
         echo '#!/bin/bash' > /usr/local/bin/corsy
         echo 'python3 /usr/local/bin/.corsy/corsy.py \"\$@\"' >> /usr/local/bin/corsy
         chmod +x /usr/local/bin/corsy
-    " >/dev/null 2>&1
+    "
 
     # Installing FireProx and AWS CLI
     echo "Installing FireProx and AWS CLI..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/ustayready/fireprox /usr/local/bin/.fireprox >/dev/null 2>&1
+        git clone https://github.com/ustayready/fireprox /usr/local/bin/.fireprox
         cd /usr/local/bin/.fireprox
-        pip3 install -r requirements.txt --break-system-packages >/dev/null 2>&1
+        pip3 install -r requirements.txt --break-system-packages
         echo '#!/bin/bash' > /usr/local/bin/fireprox
         echo 'python3 /usr/local/bin/.fireprox/fire.py \"\$@\"' >> /usr/local/bin/fireprox
         chmod +x /usr/local/bin/fireprox
         
-        curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' >/dev/null 2>&1
-        unzip awscliv2.zip >/dev/null 2>&1
-        ./aws/install >/dev/null 2>&1
+        curl -fL 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip'
+        unzip awscliv2.zip
+        ./aws/install
         rm -rf aws awscliv2.zip
-    " >/dev/null 2>&1
+    "
 
     # Installing local tools
     echo "Installing local tools..."
     
     # ronema
-    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema" >/dev/null 2>&1
-    sudo cp -r "${PWD}/config/ronema/src"/* "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema/" >/dev/null 2>&1
+    sudo mkdir -p "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema"
+    sudo cp -r "${PWD}/config/ronema/src"/* "${LIVE_BOOT_DIR}/chroot/home/${USERNAME}/.config/ronema/"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         cp /home/${USERNAME}/.config/ronema/ronema /usr/local/bin/ronema
         cp /home/${USERNAME}/.config/ronema/roblma /usr/local/bin/roblma
         chmod +x /usr/local/bin/ronema /usr/local/bin/roblma
         chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config/ronema
-    " >/dev/null 2>&1
+    "
 
     # recon
-    sudo cp -r "../recon" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/.recon" >/dev/null 2>&1
+    sudo cp -r "../recon" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/.recon"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod +x /usr/local/bin/.recon/recon.py
         ln -sf /usr/local/bin/.recon/recon.py /usr/local/bin/recon
-    " >/dev/null 2>&1
+    "
 
     # infra
-    sudo cp "../infra/infra.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/infra.py" >/dev/null 2>&1
+    sudo cp "../infra/infra.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/infra.py"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod +x /usr/local/bin/infra.py
         ln -sf /usr/local/bin/infra.py /usr/local/bin/infra
-        pip3 install cloudflare python-dotenv boto3 questionary botocore --break-system-packages >/dev/null 2>&1
-    " >/dev/null 2>&1
+        pip3 install cloudflare python-dotenv boto3 questionary botocore --break-system-packages
+    "
 
     # osint
-    sudo cp "../OSINT/osint.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/osint.py" >/dev/null 2>&1
+    sudo cp "../OSINT/osint.py" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/osint.py"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod +x /usr/local/bin/osint.py
         ln -sf /usr/local/bin/osint.py /usr/local/bin/osint
-        pip3 install requests beautifulsoup4 cloudscraper --break-system-packages >/dev/null 2>&1
-    " >/dev/null 2>&1
+        pip3 install requests beautifulsoup4 cloudscraper --break-system-packages
+    "
 
     # bbot
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - mist -c 'pipx install bbot' >/dev/null 2>&1
-    " >/dev/null 2>&1
+        su - mist -c 'pipx install bbot'
+    "
 
     # Spiderfoot
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot >/dev/null 2>&1
+        git clone https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot
         cd /usr/local/bin/.spiderfoot
-        pip3 install -r requirements.txt --break-system-packages >/dev/null 2>&1
+        pip3 install -r requirements.txt --break-system-packages
         echo '#!/bin/bash' > /usr/local/bin/spiderfoot
         echo 'python3 /usr/local/bin/.spiderfoot/sf.py \"\$@\"' >> /usr/local/bin/spiderfoot
         chmod +x /usr/local/bin/spiderfoot
-    " >/dev/null 2>&1
+    "
 
     # RF-Lockpick
-    sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick" >/dev/null 2>&1
-    sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf" >/dev/null 2>&1
+    sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick"
+    sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        pip3 install flask flask-cors flask-socketio python-dotenv requests --break-system-packages >/dev/null 2>&1
+        pip3 install flask flask-cors flask-socketio python-dotenv requests --break-system-packages
         chmod +x /usr/local/bin/rf
-    " >/dev/null 2>&1
+    "
 
     # Set final permissions
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod -R 755 /usr/local/bin
-    " >/dev/null 2>&1
+    "
 
     # External package installations
     echo "Installing external packages..."
     
     # Nody-Greeter install
     echo "Installing Nody-Greeter..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL" >/dev/null 2>&1; then
+    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"; then
         echo "✓ Nody-Greeter downloaded successfully"
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/nody-greeter.deb >/dev/null 2>&1
+            dpkg -i /tmp/nody-greeter.deb
             rm /tmp/nody-greeter.deb
-        " >/dev/null 2>&1
+        "
     else
         echo "✗ Failed to download Nody-Greeter"
     fi
 
     # Obsidian install
     echo "Installing Obsidian..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL" >/dev/null 2>&1; then
+    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"; then
         echo "✓ Obsidian downloaded successfully"
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/obsidian.deb >/dev/null 2>&1 || apt-get install -f -y >/dev/null 2>&1
-            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian >/dev/null 2>&1
+            dpkg -i /tmp/obsidian.deb || apt-get install -f -y
+            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian
             rm /tmp/obsidian.deb
-        " >/dev/null 2>&1
+        "
     else
         echo "✗ Failed to download Obsidian"
     fi
 
     # Caido CLI install
     echo "Installing Caido CLI..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL" >/dev/null 2>&1; then
+    if sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL"; then
         echo "✓ Caido CLI downloaded successfully"
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
             cd /tmp &&
-            tar -xzf caido-cli.tar.gz >/dev/null 2>&1 &&
+            tar -xzf caido-cli.tar.gz &&
             mv caido-cli /usr/local/bin/caido-cli &&
             chmod +x /usr/local/bin/caido-cli &&
             rm caido-cli.tar.gz
-        " >/dev/null 2>&1
+        "
     else
         echo "✗ Failed to download Caido CLI"
     fi
@@ -329,7 +289,7 @@ install_external_packages() {
 configure_system() {
     echo "Configuring system..."
     local system_conf="${PWD}/config/system/system.conf"
-    source "${system_conf}" >/dev/null 2>&1
+    source "${system_conf}"
 
     # Set hostname
     echo "${HOSTNAME}" | sudo tee "${LIVE_BOOT_DIR}/chroot/etc/hostname"
@@ -395,17 +355,17 @@ configure_system() {
     # Configure and generate locales
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         sed -i 's/# ${LOCALE} UTF-8/${LOCALE} UTF-8/' /etc/locale.gen
-        locale-gen ${LOCALE} >/dev/null 2>&1
+        locale-gen ${LOCALE}
         update-locale LANG=${LOCALE} LC_ALL=${LOCALE} LANGUAGE=${LOCALE%.*}
         ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
         echo '${TIMEZONE}' > /etc/timezone
-        dpkg-reconfigure -f noninteractive tzdata >/dev/null 2>&1
+        dpkg-reconfigure -f noninteractive tzdata
     "
     
     # Clean up unnecessary packages
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        apt-get autoremove -y >/dev/null 2>&1
-        apt-get clean >/dev/null 2>&1
+        apt-get autoremove -y
+        apt-get clean
     "        
 }
 
@@ -437,20 +397,20 @@ configure_boot_loaders() {
 create_efi_images() {
     echo "Creating EFI images..."
     grub-mkstandalone -O i386-efi --modules="part_gpt part_msdos fat iso9660" --locales="" --themes="" --fonts="" \
-        --output="${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTIA32.EFI" "boot/grub/grub.cfg=${LIVE_BOOT_DIR}/tmp/grub-embed/grub-early.cfg" >/dev/null 2>&1
+        --output="${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTIA32.EFI" "boot/grub/grub.cfg=${LIVE_BOOT_DIR}/tmp/grub-embed/grub-early.cfg"
 
     grub-mkstandalone -O x86_64-efi --modules="part_gpt part_msdos fat iso9660" --locales="" --themes="" --fonts="" \
-        --output="${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTx64.EFI" "boot/grub/grub.cfg=${LIVE_BOOT_DIR}/tmp/grub-embed/grub-early.cfg" >/dev/null 2>&1
+        --output="${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTx64.EFI" "boot/grub/grub.cfg=${LIVE_BOOT_DIR}/tmp/grub-embed/grub-early.cfg"
 }
 
 create_uefi_boot_image() {
     echo "Creating UEFI boot image..."
     cd "${LIVE_BOOT_DIR}/staging"
-    dd if=/dev/zero of=efiboot.img bs=1M count=20 >/dev/null 2>&1
-    mkfs.vfat efiboot.img >/dev/null 2>&1
-    mmd -i efiboot.img ::/EFI ::/EFI/BOOT >/dev/null 2>&1
-    mcopy -vi efiboot.img "${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTIA32.EFI" "${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTx64.EFI" "${LIVE_BOOT_DIR}/staging/boot/grub/grub.cfg" ::/EFI/BOOT/ >/dev/null 2>&1
-    cd - >/dev/null
+    dd if=/dev/zero of=efiboot.img bs=1M count=20
+    mkfs.vfat efiboot.img
+    mmd -i efiboot.img ::/EFI ::/EFI/BOOT
+    mcopy -vi efiboot.img "${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTIA32.EFI" "${LIVE_BOOT_DIR}/staging/EFI/BOOT/BOOTx64.EFI" "${LIVE_BOOT_DIR}/staging/boot/grub/grub.cfg" ::/EFI/BOOT/
+    cd -
 }
 
 create_iso() {
