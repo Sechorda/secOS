@@ -129,16 +129,22 @@ install_kernel_and_packages() {
     # Install all packages from CUSTOM_PROGRAMS array
     echo "Installing all packages..."
     
-    # Install packages with graceful failure handling
+    # Install packages while streaming full output to stdout (visible in GitHub Actions logs)
+    # and also saving to /tmp/pkg_install.log inside the chroot for later inspection.
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1"
+        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
+        -o Debug::pkgProblemResolver=true -o Debug::Acquire::http=true \
+        install ${CUSTOM_PROGRAMS[*]} 2>&1 | tee /tmp/pkg_install.log"
     
     local packages_exit_code=$?
     if [ $packages_exit_code -eq 0 ]; then
         echo "✓ All packages installed successfully"
     else
-        echo "✗ Some packages installation failed, but continuing..."
+        echo "✗ Some packages installation failed. Showing last 200 lines of /tmp/pkg_install.log from chroot:"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "tail -n 200 /tmp/pkg_install.log" || true
+        echo "Full log is available at ${LIVE_BOOT_DIR}/chroot/tmp/pkg_install.log"
+        return $packages_exit_code
     fi
     
     # External package installations

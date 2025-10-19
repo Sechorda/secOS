@@ -27,12 +27,13 @@ jobs:
           mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
         curl https://rclone.org/install.sh | sudo bash
 
-    - name: Build secOS
+    - name: Build secOS (verbose)
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
         chmod +x buildeb/buildeb.sh
         cd buildeb
-        sudo ./buildeb.sh
+        # Run with shell tracing and tee so full stdout/stderr is visible in Actions logs
+        sudo bash -x ./buildeb.sh 2>&1 | tee build_run.log
 
 
     - name: Upload to Cloudflare R2
