@@ -151,47 +151,48 @@ install_kernel_and_packages() {
 
 
 install_external_packages() {
-    echo "Installing GitHub packages..."
+    echo "Installing external packages..."
 
     # Build Kismet first to surface build issues early (robust CI-safe logic)
-    echo "Building and installing Kismet from source inside chroot (early)..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
-set -e
-export DEBIAN_FRONTEND=noninteractive
-
-cd /tmp || exit 1
-rm -rf kismet
-
-# Clone with submodules (fallback ensures submodules initialized)
-git clone --depth 1 --recurse-submodules https://www.kismetwireless.net/git/kismet.git kismet || {
-  git clone --depth 1 https://www.kismetwireless.net/git/kismet.git kismet
-  (cd kismet && git submodule update --init --recursive) || true
-}
-
-cd kismet || { echo "kismet dir missing; skipping build" >&2; exit 0; }
-
-# Prefer upstream top-level build flow
-if [ -x ./configure ]; then
-  ./configure
-  make -j"$(nproc)"
-  make install
-  ldconfig
-  exit 0
-fi
-
-# Fallback to locating a CMakeLists.txt and building with CMake
-cmake_file="$(find . -maxdepth 6 -type f -name CMakeLists.txt -print -quit || true)"
-if [ -n "${cmake_file}" ]; then
-  src_dir="$(cd "$(dirname "${cmake_file}")" && pwd)"
-  mkdir -p build && cd build
-  cmake "${src_dir}"
-  make -j"$(nproc)"
-  make install
-  ldconfig
-else
-  echo "ERROR: No top-level configure or CMakeLists.txt found for Kismet; skipping build" >&2
-fi
-'
+    # Kismet build/install commented out per request to disable Kismet compilation.
+    # echo "Building and installing Kismet from source inside chroot (early)..."
+    # sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
+# set -e
+# export DEBIAN_FRONTEND=noninteractive
+#
+# cd /tmp || exit 1
+# rm -rf kismet
+#
+# # Clone with submodules (fallback ensures submodules initialized)
+# git clone --depth 1 --recurse-submodules https://www.kismetwireless.net/git/kismet.git kismet || {
+#   git clone --depth 1 https://www.kismetwireless.net/git/kismet.git kismet
+#   (cd kismet && git submodule update --init --recursive) || true
+# }
+#
+# cd kismet || { echo "kismet dir missing; skipping build" >&2; exit 0; }
+#
+# # Prefer upstream top-level build flow
+# if [ -x ./configure ]; then
+#   ./configure
+#   make -j"$(nproc)"
+#   make install
+#   ldconfig
+#   exit 0
+# fi
+#
+# # Fallback to locating a CMakeLists.txt and building with CMake
+# cmake_file="$(find . -maxdepth 6 -type f -name CMakeLists.txt -print -quit || true)"
+# if [ -n "${cmake_file}" ]; then
+#   src_dir="$(cd "$(dirname "${cmake_file}")" && pwd)"
+#   mkdir -p build && cd build
+#   cmake "${src_dir}"
+#   make -j"$(nproc)"
+#   make install
+#   ldconfig
+# else
+#   echo "ERROR: No top-level configure or CMakeLists.txt found for Kismet; skipping build" >&2
+# fi
+# '
     
     # Installing Wifite2
     echo "Installing Wifite2..."
