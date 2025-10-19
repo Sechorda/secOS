@@ -59,18 +59,37 @@ bootstrap_debian() {
 install_kernel_and_packages() {
     echo "Installing kernel and packages..."
     
-    # Create user and configure system
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1
+    # Create user
+    echo "Creating user ${USERNAME}..."
+    if sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1; then
+        echo "✓ User ${USERNAME} created"
+    else
+        echo "✗ Failed to create user ${USERNAME}"
+        return 1
+    fi
+
+    # Set passwords
+    echo "Setting user passwords..."
     echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
     sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" >/dev/null 2>&1
     echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
-    
-    # Configure repositories and install basic tools
+
+    # Configure repositories
+    echo "Configuring repositories..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" >/dev/null 2>&1
-    
+
+    # Install basic tools first
+    echo "Installing basic tools (curl, gpg)..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && apt-get update >/dev/null 2>&1 && apt-get install -y curl gpg >/dev/null 2>&1"
+    
+    if [ $? -eq 0 ]; then
+        echo "✓ Basic tools installed successfully"
+    else
+        echo "✗ Failed to install basic tools"
+        return 1
+    fi
     
     # Add external repositories
     echo "Adding external repositories..."
