@@ -2,9 +2,6 @@
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
-trap 'rm -rf "${LIVE_BOOT_DIR}"' EXIT  # Clean up on exit
-
-echo "=== Starting secOS Build Process ==="
 
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
@@ -12,12 +9,6 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
-# Try current directory first, fall back to /tmp if needed
-if mkdir -p "${PWD}/LIVE_BOOT" 2>/dev/null; then
-    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
-else
-    LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
-fi
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
@@ -25,8 +16,8 @@ CUSTOM_PROGRAMS=(
     # Dev
     openssh-server
     # Packages
-    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome compton rofi proxychains kismet calamares
-    # Dependencies
+    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome compton rofi proxychains calamares
+    # Dependencies (including build/development packages required for building Kismet)
     sudo git golang-go python3 python3-pip pipx python3-setuptools unzip pciutils wget tar dpkg locales tzdata curl gpg
     network-manager net-tools network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng iputils-ping iproute2
     firmware-linux-nonfree firmware-iwlwifi xorg xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all alsa-utils playerctl
@@ -35,22 +26,16 @@ CUSTOM_PROGRAMS=(
     libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
     udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez nemo
-)
 
-setup_build_env() {
-    echo "Setting up build environment..."
-    if [ -f "${ISO_NAME}" ]; then
-        rm "${ISO_NAME}"
-    fi
-    
-    sudo apt-get update >/dev/null 2>&1
-    sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-        mtools dosfstools wget unzip >/dev/null 2>&1
-}
+    # Build deps added to avoid duplicate apt installs (Kismet build will run after these are installed)
+    build-essential cmake pkg-config git python3-dev python3-pip
+    libnl-3-dev libnl-genl-3-dev libpcap-dev libcap-ng-dev libprotobuf-dev protobuf-compiler libprotobuf-c-dev libsqlite3-dev
+    libmicrohttpd-dev libwebsockets-dev libusb-1.0-0-dev librtlsdr-dev libpcre2-dev libsensors-dev libbtbb-dev libmosquitto-dev
+)
 
 bootstrap_debian() {
     echo "Bootstrapping Debian..."
+    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
     mkdir -p "${LIVE_BOOT_DIR}"
     sudo debootstrap --arch=amd64 --variant=minbase stable \
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
@@ -100,30 +85,7 @@ install_kernel_and_packages() {
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
     " >/dev/null 2>&1
     
-    # Install Kismet from source inside chroot (ubuntu runner uses noble; upstream package appears broken)
-    echo "Building and installing Kismet from source inside chroot..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-
-        # Ensure build dependencies are available
-        apt-get update
-        apt-get install -y build-essential cmake libnl-3-dev libnl-genl-3-dev libpcap-dev libcap-ng-dev \
-            libprotobuf-dev protobuf-compiler libprotobuf-c-dev libsqlite3-dev libmicrohttpd-dev libwebsockets-dev \
-            pkg-config git python3 python3-pip
-
-        # Clone, build, and install Kismet
-        cd /tmp
-        rm -rf kismet
-        git clone --depth 1 https://www.kismetwireless.net/git/kismet.git
-        cd kismet
-        mkdir -p build
-        cd build
-        cmake ..
-        make -j$(nproc)
-        make install
-        ldconfig
-    '
+    echo "Kismet build moved to install_github_packages to run after other GitHub installs"
     
     # Update package lists
     echo "Updating package lists..."
@@ -170,50 +132,6 @@ install_kernel_and_packages() {
 }
 
 install_external_packages() {
-    echo "Installing external packages..."
-    
-    # Nody-Greeter install
-    echo "Installing Nody-Greeter..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL" >/dev/null 2>&1; then
-        echo "✓ Nody-Greeter downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/nody-greeter.deb >/dev/null 2>&1
-            rm /tmp/nody-greeter.deb
-        " >/dev/null 2>&1
-    else
-        echo "✗ Failed to download Nody-Greeter"
-    fi
-
-    # Obsidian install
-    echo "Installing Obsidian..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL" >/dev/null 2>&1; then
-        echo "✓ Obsidian downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/obsidian.deb >/dev/null 2>&1 || apt-get install -f -y >/dev/null 2>&1
-            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian >/dev/null 2>&1
-            rm /tmp/obsidian.deb
-        " >/dev/null 2>&1
-    else
-        echo "✗ Failed to download Obsidian"
-    fi
-
-    # Caido CLI install
-    echo "Installing Caido CLI..."
-    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL" >/dev/null 2>&1; then
-        echo "✓ Caido CLI downloaded successfully"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            cd /tmp &&
-            tar -xzf caido-cli.tar.gz >/dev/null 2>&1 &&
-            mv caido-cli /usr/local/bin/caido-cli &&
-            chmod +x /usr/local/bin/caido-cli &&
-            rm caido-cli.tar.gz
-        " >/dev/null 2>&1
-    else
-        echo "✗ Failed to download Caido CLI"
-    fi
-}
-
-install_github_packages() {
     echo "Installing GitHub packages..."
     
     # Installing Wifite2
@@ -380,8 +298,69 @@ install_github_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod -R 755 /usr/local/bin
     " >/dev/null 2>&1
+
+    # External package installations (moved from install_external_packages)
+    echo "Installing external packages..."
     
-    echo "✓ GitHub packages installation completed"
+    # Nody-Greeter install
+    echo "Installing Nody-Greeter..."
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL" >/dev/null 2>&1; then
+        echo "✓ Nody-Greeter downloaded successfully"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            dpkg -i /tmp/nody-greeter.deb >/dev/null 2>&1
+            rm /tmp/nody-greeter.deb
+        " >/dev/null 2>&1
+    else
+        echo "✗ Failed to download Nody-Greeter"
+    fi
+
+    # Obsidian install
+    echo "Installing Obsidian..."
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL" >/dev/null 2>&1; then
+        echo "✓ Obsidian downloaded successfully"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            dpkg -i /tmp/obsidian.deb >/dev/null 2>&1 || apt-get install -f -y >/dev/null 2>&1
+            ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian >/dev/null 2>&1
+            rm /tmp/obsidian.deb
+        " >/dev/null 2>&1
+    else
+        echo "✗ Failed to download Obsidian"
+    fi
+
+    # Caido CLI install
+    echo "Installing Caido CLI..."
+    if sudo wget --timeout=30 -q -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL" >/dev/null 2>&1; then
+        echo "✓ Caido CLI downloaded successfully"
+        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+            cd /tmp &&
+            tar -xzf caido-cli.tar.gz >/dev/null 2>&1 &&
+            mv caido-cli /usr/local/bin/caido-cli &&
+            chmod +x /usr/local/bin/caido-cli &&
+            rm caido-cli.tar.gz
+        " >/dev/null 2>&1
+    else
+        echo "✗ Failed to download Caido CLI"
+    fi
+
+    # Build Kismet from source at end (moved here)
+    echo "Building and installing Kismet from source inside chroot..."
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+
+        # Clone, build, and install Kismet (build deps provided via CUSTOM_PROGRAMS)
+        cd /tmp
+        git clone --depth 1 https://www.kismetwireless.net/git/kismet.git
+        cd kismet
+        mkdir -p build
+        cd build
+        cmake ..
+        make -j$(nproc)
+        make install
+        ldconfig
+    '
+
+    echo "✓ External packages installed"
 }
 
 configure_system() {
@@ -529,17 +508,11 @@ create_iso() {
 }
     
 main() {
-    # Check and remove existing temporary directory if it exists
-    if [ -d "${LIVE_BOOT_DIR}" ]; then
-        sudo rm -rf "${LIVE_BOOT_DIR}"
-    fi
-    
     echo "Starting secOS build process..."
     
-    setup_build_env
     bootstrap_debian
     install_kernel_and_packages
-    install_github_packages    
+    install_external_packages
     configure_system
     create_filesystem
     configure_boot_loaders

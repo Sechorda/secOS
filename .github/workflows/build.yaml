@@ -28,43 +28,6 @@ jobs:
         curl https://rclone.org/install.sh | sudo bash
 
 
-    - name: Debug Kismet build on runner
-      run: |
-        sudo mount -t proc proc /proc || echo "/proc already mounted"
-        echo "=== Debug: test building Kismet on the runner (host) ==="
-        # Import signing key (not strictly required for source build but keeps parity)
-        wget -O - https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/kismet-archive-keyring.gpg
-        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/noble noble main' | sudo tee /etc/apt/sources.list.d/kismet.list
-        sudo apt-get update
-
-        # Install build dependencies on the runner (allow failure)
-        sudo apt-get install -y build-essential cmake libnl-3-dev libnl-genl-3-dev libpcap-dev libcap-ng-dev \
-          libprotobuf-dev protobuf-compiler libprotobuf-c-dev libsqlite3-dev libmicrohttpd-dev libwebsockets-dev \
-          pkg-config git python3 python3-pip || true
-
-        # Clone and build Kismet on the runner (allow failure but show logs)
-        cd /tmp
-        rm -rf kismet
-        git clone --depth 1 https://www.kismetwireless.net/git/kismet.git 2>&1 | tee /tmp/kismet_clone.log || true
-        if [ -d kismet ]; then
-          cd kismet
-          mkdir -p build && cd build
-          cmake .. 2>&1 | tee /tmp/kismet_cmake.log || true
-          make -j$(nproc) 2>&1 | tee /tmp/kismet_make.log || true
-          sudo make install 2>&1 | tee /tmp/kismet_install.log || true
-          sudo ldconfig 2>&1 | tee -a /tmp/kismet_install.log || true
-        else
-          echo "Kismet source not cloned; skipping build"
-        fi
-
-        echo "=== Tail of clone log ==="
-        tail -n 200 /tmp/kismet_clone.log || true
-        echo "=== Tail of cmake log ==="
-        tail -n 200 /tmp/kismet_cmake.log || true
-        echo "=== Tail of make log ==="
-        tail -n 200 /tmp/kismet_make.log || true
-        echo "=== Tail of install log ==="
-        tail -n 200 /tmp/kismet_install.log || true
 
     - name: Build secOS (verbose)
       run: |
