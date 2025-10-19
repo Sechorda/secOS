@@ -7,14 +7,23 @@ DEBUG_LOG="/tmp/secos_build_debug.log"
 exec 2> >(tee -a "${DEBUG_LOG}")
 
 debug_info() {
-    echo "=== DEBUG: $1 ===" | tee -a "${DEBUG_LOG}"
-    echo "Timestamp: $(date)" | tee -a "${DEBUG_LOG}"
-    echo "Memory usage: $(free -h | grep '^Mem:' | awk '{print "Used: " $3 ", Available: " $7}')" | tee -a "${DEBUG_LOG}"
-    echo "Disk usage: $(df -h /tmp | tail -1 | awk '{print "Used: " $3 ", Available: " $4}')" | tee -a "${DEBUG_LOG}"
-    echo "Process count: $(ps aux | wc -l)" | tee -a "${DEBUG_LOG}"
-    echo "Last 5 apt errors:" | tee -a "${DEBUG_LOG}"
-    tail -5 /var/log/apt/term.log 2>/dev/null | tee -a "${DEBUG_LOG}" || echo "No apt logs available" | tee -a "${DEBUG_LOG}"
-    echo "" | tee -a "${DEBUG_LOG}"
+    echo "│ DEBUG: $1" | tee -a "${DEBUG_LOG}"
+}
+
+show_system_info() {
+    local mem_info=$(free -h | grep '^Mem:' | awk '{print $3 "/" $2}')
+    local disk_info=$(df -h / | tail -1 | awk '{print $3 "/" $2}')
+    local runner_version="secOS Builder v1.0"
+    
+    echo "┌─────────────────────────────────────────────────────────────────┐"
+    echo "│                        secOS Build System                       │"
+    echo "├─────────────────────────────────────────────────────────────────┤"
+    echo "│ Started: $(date '+%Y-%m-%d %H:%M:%S %Z')                       │"
+    echo "│ Version: ${runner_version}                                      │"
+    echo "│ Memory:  ${mem_info}                                            │"
+    echo "│ Disk:    ${disk_info}                                           │"
+    echo "└─────────────────────────────────────────────────────────────────┘"
+    echo ""
 }
 
 handle_error() {
@@ -43,7 +52,7 @@ handle_error() {
 trap 'handle_error ${LINENO}' ERR
 trap 'rm -rf "${LIVE_BOOT_DIR}"' EXIT  # Clean up on exit
 
-echo "=== Starting secOS Build Process ===" | tee -a "${DEBUG_LOG}"
+show_system_info
 debug_info "Build initialization"
 
 # Constants
@@ -130,14 +139,14 @@ install_kernel_and_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" cat /etc/apt/sources.list | tee -a "${DEBUG_LOG}"
     
     # Install basic tools first
-    echo "Installing basic tools (curl, gpg)..." | tee -a "${DEBUG_LOG}"
+    echo "Installing basic tools (curl, gpg)..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y curl gpg" 2>>"${DEBUG_LOG}"
+        "export DEBIAN_FRONTEND=noninteractive && apt-get update >/dev/null 2>&1 && apt-get install -y curl gpg >/dev/null 2>&1" 2>>"${DEBUG_LOG}"
     
     if [ $? -eq 0 ]; then
-        echo "✓ Basic tools installed successfully" | tee -a "${DEBUG_LOG}"
+        echo "✓ Basic tools installed successfully"
     else
-        echo "✗ Failed to install basic tools" | tee -a "${DEBUG_LOG}"
+        echo "✗ Failed to install basic tools"
         debug_info "Basic tools installation failed"
         return 1
     fi
@@ -198,71 +207,52 @@ install_kernel_and_packages() {
     fi
     
     # Install kernel first (most critical)
-    echo "Installing Linux kernel..." | tee -a "${DEBUG_LOG}"
+    echo "Installing Linux kernel..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv" 2>&1 | tee -a "${DEBUG_LOG}"
+        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv >/dev/null 2>&1" 2>>"${DEBUG_LOG}"
     
     local kernel_exit_code=${PIPESTATUS[0]}
     if [ $kernel_exit_code -eq 0 ]; then
-        echo "✓ Kernel installed successfully" | tee -a "${DEBUG_LOG}"
+        echo "✓ Kernel installed successfully"
     else
-        echo "✗ Kernel installation failed with exit code: $kernel_exit_code" | tee -a "${DEBUG_LOG}"
+        echo "✗ Kernel installation failed with exit code: $kernel_exit_code"
         debug_info "Kernel installation failed"
-        echo "Attempting to check what went wrong..." | tee -a "${DEBUG_LOG}"
         sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "apt-cache policy linux-image-amd64" 2>&1 | tee -a "${DEBUG_LOG}"
         return $kernel_exit_code
     fi
     
     debug_info "Kernel installation completed"
     
-    # Install packages in smaller batches
-    echo "Installing core packages..." | tee -a "${DEBUG_LOG}"
-    
-    # Remove problematic packages that we know might fail
-    SAFE_PROGRAMS=($(printf '%s\n' "${CUSTOM_PROGRAMS[@]}" | grep -v -E '^(spotify-client|kismet|firmware-iwlwifi)$'))
+    # Install all custom programs
+    echo "Installing custom programs..."
     
     # Install packages with detailed error reporting
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install ${SAFE_PROGRAMS[*]}" 2>&1 | tee -a "${DEBUG_LOG}"
+        apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1" 2>>"${DEBUG_LOG}"
     
     local packages_exit_code=${PIPESTATUS[0]}
     if [ $packages_exit_code -eq 0 ]; then
-        echo "✓ Core packages installed successfully" | tee -a "${DEBUG_LOG}"
+        echo "✓ Custom programs installed successfully"
     else
-        echo "✗ Core packages installation failed with exit code: $packages_exit_code" | tee -a "${DEBUG_LOG}"
-        debug_info "Core packages installation failed"
+        echo "✗ Custom programs installation failed with exit code: $packages_exit_code"
+        debug_info "Custom programs installation failed"
         
         # Try to identify which packages failed
         echo "Checking individual package availability..." | tee -a "${DEBUG_LOG}"
-        for pkg in "${SAFE_PROGRAMS[@]}"; do
+        for pkg in "${CUSTOM_PROGRAMS[@]}"; do
             sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "apt-cache show $pkg >/dev/null 2>&1" && echo "✓ $pkg available" || echo "✗ $pkg NOT available" 
         done 2>&1 | tee -a "${DEBUG_LOG}"
         
         return $packages_exit_code
     fi
     
-    # Try to install optional packages separately
-    echo "Installing optional packages..." | tee -a "${DEBUG_LOG}"
-    for optional_pkg in spotify-client kismet firmware-iwlwifi; do
-        echo "Attempting to install $optional_pkg..." | tee -a "${DEBUG_LOG}"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-            "export DEBIAN_FRONTEND=noninteractive && \
-            apt-get --yes --quiet -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install $optional_pkg" 2>&1 | tee -a "${DEBUG_LOG}"
-        
-        if [ ${PIPESTATUS[0]} -eq 0 ]; then
-            echo "✓ $optional_pkg installed successfully" | tee -a "${DEBUG_LOG}"
-        else
-            echo "✗ $optional_pkg installation failed (continuing without it)" | tee -a "${DEBUG_LOG}"
-        fi
-    done
-    
     # Install no-recommends packages
-    echo "Installing no-recommends packages..." | tee -a "${DEBUG_LOG}"
+    echo "Installing no-recommends packages..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes --quiet --no-install-recommends install ${NO_RECOMMENDS_PROGRAMS[*]}" 2>&1 | tee -a "${DEBUG_LOG}"
+        apt-get --yes --quiet --no-install-recommends install ${NO_RECOMMENDS_PROGRAMS[*]} >/dev/null 2>&1" 2>>"${DEBUG_LOG}"
     
     debug_info "Package installation phase completed"
     
