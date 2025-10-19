@@ -16,8 +16,7 @@
 <div align="center">
 
 # Summary
-[wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
-[Download secOS](https://sec-os.com)<br>
+[wiki / docs](https://github.com/Sechorda/secOS/wiki) ◦ [Download secOS](https://sec-os.com)<br>
 
 secOS is a Debian-based Linux distribution for cybersecurity researchers. It combines essential penetration testing and bug bounty tools into a pre-configured metaframework, emphasizing minimalism and efficiency. The lightweight design enables security practitioners to focus on testing rather than setup and configuration.
 
