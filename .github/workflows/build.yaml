@@ -19,56 +19,6 @@ jobs:
         fetch-depth: 0
         access-token: x-access-token:${{ secrets.ACTION_PAT }}
 
-    - name: Debug Package Manager
-      run: |
-        echo "=== DEBUGGING PACKAGE MANAGER FOR SPOTIFY AND KISMET ==="
-        
-        # Setup Spotify repository on host system
-        echo "--- Setting up Spotify Repository ---"
-        curl -sS https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg
-        echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list
-        
-        # Setup Kismet repository on host system
-        echo "--- Setting up Kismet Repository ---"
-        curl -sS https://www.kismetwireless.net/repos/kismet-release.gpg.key | sudo gpg --dearmor --yes -o /usr/share/keyrings/kismet-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main" | sudo tee /etc/apt/sources.list.d/kismet.list
-        
-        # Update package lists
-        echo "--- Updating package lists ---"
-        sudo apt-get update
-        
-        # Test package availability
-        echo "--- Testing Package Availability ---"
-        if apt-cache show spotify-client >/dev/null 2>&1; then
-            echo "✓ spotify-client is available"
-            apt-cache policy spotify-client
-        else
-            echo "✗ spotify-client is NOT available"
-            echo "Available Spotify packages:"
-            apt-cache search spotify | head -5
-        fi
-        
-        if apt-cache show kismet >/dev/null 2>&1; then
-            echo "✓ kismet is available"  
-            apt-cache policy kismet
-        else
-            echo "✗ kismet is NOT available"
-            echo "Available Kismet packages:"
-            apt-cache search kismet | head -5
-        fi
-        
-        # Test actual package installation
-        echo "--- Testing Package Installation ---"
-        if apt-cache show spotify-client >/dev/null 2>&1; then
-            echo "Attempting to install spotify-client..."
-            sudo apt-get install -y spotify-client || echo "Failed to install spotify-client"
-        fi
-        
-        if apt-cache show kismet >/dev/null 2>&1; then
-            echo "Attempting to install kismet..."
-            sudo apt-get install -y kismet || echo "Failed to install kismet"
-        fi
-        
     - name: Install Dependencies
       run: |
         sudo apt-get update

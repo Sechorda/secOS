@@ -59,101 +59,39 @@ bootstrap_debian() {
 install_kernel_and_packages() {
     echo "Installing kernel and packages..."
     
-    # Create user
-    echo "Creating user ${USERNAME}..."
-    if sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1; then
-        echo "✓ User ${USERNAME} created successfully"
-    else
-        echo "✗ Failed to create user ${USERNAME}"
-        return 1
-    fi
-    
-    # Set passwords
-    echo "Setting user passwords..."
+    # Create user and configure system
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" useradd -m -s /bin/bash "${USERNAME}" >/dev/null 2>&1
     echo "${USERNAME}:live" | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
     sudo chroot "${LIVE_BOOT_DIR}/chroot" usermod -aG sudo "${USERNAME}" >/dev/null 2>&1
     echo 'root:live' | sudo chroot "${LIVE_BOOT_DIR}/chroot" chpasswd >/dev/null 2>&1
     
-    # Configure repositories
-    echo "Configuring repositories..."
+    # Configure repositories and install basic tools
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list" >/dev/null 2>&1
     
-    # Install basic tools first
-    echo "Installing basic tools (curl, gpg)..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "export DEBIAN_FRONTEND=noninteractive && apt-get update >/dev/null 2>&1 && apt-get install -y curl gpg >/dev/null 2>&1"
     
-    if [ $? -eq 0 ]; then
-        echo "✓ Basic tools installed successfully"
-    else
-        echo "✗ Failed to install basic tools"
-        return 1
-    fi
-    
-    # Add external repositories with debugging
+    # Add external repositories
     echo "Adding external repositories..."
     
-    # Test Spotify repository setup
-    echo "--- Testing Spotify Repository ---"
+    # Add Spotify repository
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        if curl -f -sS --connect-timeout 30 https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg >/dev/null 2>&1; then
-            echo '✓ Spotify GPG key accessible'
-            if curl -f -sS --connect-timeout 30 https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/spotify.gpg 2>/dev/null; then
-                echo '✓ Spotify GPG key downloaded successfully'
-                echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
-                echo '✓ Spotify repository added'
-            else
-                echo '✗ Spotify GPG key download failed'
-            fi
-        else
-            echo '✗ Spotify GPG key URL not accessible'
-        fi
-    "
+        curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
+        echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
+    " >/dev/null 2>&1
     
-    # Test Kismet repository setup
-    echo "--- Testing Kismet Repository ---"
+    # Add Kismet repository  
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        if curl -f -sS --connect-timeout 30 https://www.kismetwireless.net/repos/kismet-release.gpg.key >/dev/null 2>&1; then
-            echo '✓ Kismet GPG key accessible'
-            if curl -f -sS --connect-timeout 30 https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor > /usr/share/keyrings/kismet-archive-keyring.gpg 2>/dev/null; then
-                echo '✓ Kismet GPG key downloaded successfully'
-                echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' > /etc/apt/sources.list.d/kismet.list
-                echo '✓ Kismet repository added'
-            else
-                echo '✗ Kismet GPG key download failed'
-            fi
-        else
-            echo '✗ Kismet GPG key URL not accessible'
-        fi
-    "
+        mkdir -p /usr/share/keyrings
+        curl -fsSL https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor -o /usr/share/keyrings/kismet-archive-keyring.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' > /etc/apt/sources.list.d/kismet.list
+    " >/dev/null 2>&1
     
     # Update package lists
     echo "Updating package lists..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && apt-get clean && apt-get update"
-    
-    # Test if problematic packages are now available
-    echo "--- Testing Package Availability After Repository Setup ---"
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        if apt-cache show spotify-client >/dev/null 2>&1; then
-            echo '✓ spotify-client now available'
-        else
-            echo '✗ spotify-client still not available'
-        fi
-        
-        if apt-cache show kismet >/dev/null 2>&1; then
-            echo '✓ kismet now available'
-        else
-            echo '✗ kismet still not available'
-        fi
-        
-        if apt-cache show compton >/dev/null 2>&1; then
-            echo '✓ compton available'
-        else
-            echo '✗ compton not available (may need to use picom instead)'
-        fi
-    "
+        "export DEBIAN_FRONTEND=noninteractive && apt-get clean >/dev/null 2>&1 && apt-get update >/dev/null 2>&1"
     
     # Install kernel first (most critical)
     echo "Installing Linux kernel..."
