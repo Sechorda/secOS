@@ -33,7 +33,7 @@ local function run_once(cmd_arr)
     end
 end
 
-run_once({ "picom -b" }) -- comma-separated entries
+run_once({ "compton -b --config ~/.config/compton/compton.conf" }) -- comma-separated entries
 --[[------------------------------------------------------------
                     Variable definitions
 ------------------------------------------------------------]]--\n

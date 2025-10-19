@@ -33,23 +33,6 @@ jobs:
         chmod +x buildeb/buildeb.sh
         cd buildeb
         sudo ./buildeb.sh
-        
-    - name: Display debug log on failure
-      if: failure()
-      run: |
-        echo "=== BUILD FAILURE DEBUG INFORMATION ==="
-        if [ -f /tmp/secos_build_debug.log ]; then
-          echo "Debug log found, displaying contents:"
-          cat /tmp/secos_build_debug.log
-        else
-          echo "No debug log found at /tmp/secos_build_debug.log"
-        fi
-        echo "=== SYSTEM INFORMATION ==="
-        echo "Available memory: $(free -h)"
-        echo "Available disk space: $(df -h)"
-        echo "Running processes: $(ps aux --sort=-%mem | head -20)"
-        echo "=== APT LOGS ==="
-        sudo tail -50 /var/log/apt/term.log 2>/dev/null || echo "No apt logs available"
 
     - name: Upload to Cloudflare R2
       env:
