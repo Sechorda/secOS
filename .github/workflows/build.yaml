@@ -18,18 +18,14 @@ jobs:
       with:
         fetch-depth: 0
         access-token: x-access-token:${{ secrets.ACTION_PAT }}
-        
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
-          isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
-          mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
-        curl https://rclone.org/install.sh | sudo bash
 
     - name: Debug Package Availability
       run: |
-        echo "=== DEBUGGING PACKAGE AVAILABILITY BEFORE BUILD ==="
+        echo "=== DEBUGGING PACKAGE AVAILABILITY IMMEDIATELY ==="
+        
+        # Install minimal dependencies for debootstrap
+        sudo apt-get update
+        sudo apt-get install -y debootstrap
         
         # Set up minimal chroot for package testing
         sudo mkdir -p /tmp/debug_chroot
@@ -79,6 +75,54 @@ jobs:
             printf '%s\n' "${FAILED_PACKAGES[@]}"
         fi
         
+        # Test external repository setup
+        echo "=== TESTING EXTERNAL REPOSITORIES ==="
+        
+        # Test Spotify repository setup
+        echo "--- Testing Spotify Repository ---"
+        if curl -f -sS --connect-timeout 30 https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg >/dev/null 2>&1; then
+            echo "✓ Spotify GPG key accessible"
+            if curl -f -sS --connect-timeout 30 https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor > /tmp/spotify.gpg 2>/dev/null; then
+                echo "✓ Spotify GPG key downloaded successfully"
+                # Add to debug chroot
+                sudo cp /tmp/spotify.gpg /tmp/debug_chroot/etc/apt/trusted.gpg.d/spotify.gpg
+                echo 'deb http://repository.spotify.com stable non-free' | sudo tee /tmp/debug_chroot/etc/apt/sources.list.d/spotify.list >/dev/null
+                sudo chroot /tmp/debug_chroot /bin/bash -c "apt-get update >/dev/null 2>&1"
+                if sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache show spotify-client" >/dev/null 2>&1; then
+                    echo "✓ spotify-client now available after repo setup"
+                else
+                    echo "✗ spotify-client still not available after repo setup"
+                fi
+            else
+                echo "✗ Spotify GPG key download failed"
+            fi
+        else
+            echo "✗ Spotify GPG key URL not accessible"
+        fi
+        
+        # Test Kismet repository setup
+        echo "--- Testing Kismet Repository ---"
+        if curl -f -sS --connect-timeout 30 https://www.kismetwireless.net/repos/kismet-release.gpg.key >/dev/null 2>&1; then
+            echo "✓ Kismet GPG key accessible"
+            if curl -f -sS --connect-timeout 30 https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor > /tmp/kismet.gpg 2>/dev/null; then
+                echo "✓ Kismet GPG key downloaded successfully"
+                # Add to debug chroot
+                sudo mkdir -p /tmp/debug_chroot/usr/share/keyrings
+                sudo cp /tmp/kismet.gpg /tmp/debug_chroot/usr/share/keyrings/kismet-archive-keyring.gpg
+                echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/bookworm bookworm main' | sudo tee /tmp/debug_chroot/etc/apt/sources.list.d/kismet.list >/dev/null
+                sudo chroot /tmp/debug_chroot /bin/bash -c "apt-get update >/dev/null 2>&1"
+                if sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache show kismet" >/dev/null 2>&1; then
+                    echo "✓ kismet now available after repo setup"
+                else
+                    echo "✗ kismet still not available after repo setup"
+                fi
+            else
+                echo "✗ Kismet GPG key download failed"
+            fi
+        else
+            echo "✗ Kismet GPG key URL not accessible"
+        fi
+        
         # Show available compositor alternatives
         echo "=== AVAILABLE COMPOSITORS ==="
         sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache search compositor | head -10"
@@ -86,6 +130,14 @@ jobs:
         
         # Clean up debug chroot
         sudo rm -rf /tmp/debug_chroot
+        
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+          isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+          mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
+        curl https://rclone.org/install.sh | sudo bash
 
     - name: Build secOS
       run: |
