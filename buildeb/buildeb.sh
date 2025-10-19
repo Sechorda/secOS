@@ -65,7 +65,7 @@ CUSTOM_PROGRAMS=(
     # Dev
     openssh-server
     # Packages
-    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome picom rofi proxychains kismet
+    firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome picom rofi proxychains kismet calamares
     # Dependencies
     sudo git golang-go python3 python3-pip pipx python3-setuptools unzip pciutils wget tar dpkg locales tzdata curl gpg
     network-manager net-tools network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng iputils-ping iproute2
@@ -285,17 +285,17 @@ install_external_packages_with_debug() {
         echo "✗ Failed to download Nody-Greeter" | tee -a "${DEBUG_LOG}"
     fi
 
-    # Calamares install
-    echo "Installing Calamares..." | tee -a "${DEBUG_LOG}"
-    if [ -f "${PWD}/config/calamares/calamares_3.3.8.deb" ]; then
-        sudo cp "${PWD}/config/calamares/calamares_3.3.8.deb" "${LIVE_BOOT_DIR}/chroot/tmp/calamares.deb"
-        sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-            dpkg -i /tmp/calamares.deb 2>&1 && echo 'Calamares installed successfully' || echo 'Calamares installation failed'
-            rm /tmp/calamares.deb
-        " 2>&1 | tee -a "${DEBUG_LOG}"
-    else
-        echo "✗ Calamares .deb file not found" | tee -a "${DEBUG_LOG}"
-    fi
+    # Calamares install - commented out, moved to custom packages list
+    # echo "Installing Calamares..." | tee -a "${DEBUG_LOG}"
+    # if [ -f "${PWD}/config/calamares/calamares_3.3.8.deb" ]; then
+    #     sudo cp "${PWD}/config/calamares/calamares_3.3.8.deb" "${LIVE_BOOT_DIR}/chroot/tmp/calamares.deb"
+    #     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
+    #         dpkg -i /tmp/calamares.deb 2>&1 && echo 'Calamares installed successfully' || echo 'Calamares installation failed'
+    #         rm /tmp/calamares.deb
+    #     " 2>&1 | tee -a "${DEBUG_LOG}"
+    # else
+    #     echo "✗ Calamares .deb file not found" | tee -a "${DEBUG_LOG}"
+    # fi
 
     # Obsidian install with error handling
     echo "Installing Obsidian..." | tee -a "${DEBUG_LOG}"
