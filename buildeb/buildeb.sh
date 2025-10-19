@@ -100,12 +100,30 @@ install_kernel_and_packages() {
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
     " >/dev/null 2>&1
     
-    # Add Kismet repository  
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        mkdir -p /usr/share/keyrings
-        curl -fsSL https://www.kismetwireless.net/repos/kismet-release.gpg.key | gpg --dearmor -o /usr/share/keyrings/kismet-archive-keyring.gpg
-        echo 'deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/noble noble main' > /etc/apt/sources.list.d/kismet.list
-    " >/dev/null 2>&1
+    # Install Kismet from source inside chroot (ubuntu runner uses noble; upstream package appears broken)
+    echo "Building and installing Kismet from source inside chroot..."
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+
+        # Ensure build dependencies are available
+        apt-get update
+        apt-get install -y build-essential cmake libnl-3-dev libnl-genl-3-dev libpcap-dev libcap-ng-dev \
+            libprotobuf-dev protobuf-compiler libprotobuf-c-dev libsqlite3-dev libmicrohttpd-dev libwebsockets-dev \
+            pkg-config git python3 python3-pip
+
+        # Clone, build, and install Kismet
+        cd /tmp
+        rm -rf kismet
+        git clone --depth 1 https://www.kismetwireless.net/git/kismet.git
+        cd kismet
+        mkdir -p build
+        cd build
+        cmake ..
+        make -j$(nproc)
+        make install
+        ldconfig
+    '
     
     # Update package lists
     echo "Updating package lists..."
