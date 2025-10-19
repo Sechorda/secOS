@@ -2,6 +2,9 @@
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
+trap 'rm -rf "${LIVE_BOOT_DIR}"' EXIT  # Clean up on exit
+
+echo "=== Starting secOS Build Process ==="
 
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
@@ -9,6 +12,12 @@ NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2
 OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
 CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
 
+# Try current directory first, fall back to /tmp if needed
+if mkdir -p "${PWD}/LIVE_BOOT" 2>/dev/null; then
+    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
+else
+    LIVE_BOOT_DIR="/tmp/LIVE_BOOT"
+fi
 ISO_NAME="secOS.iso"
 USERNAME="mist"
 
@@ -33,9 +42,20 @@ CUSTOM_PROGRAMS=(
     libmicrohttpd-dev libwebsockets-dev libusb-1.0-0-dev librtlsdr-dev libpcre2-dev libsensors-dev libbtbb-dev libmosquitto-dev
 )
 
+setup_build_env() {
+    echo "Setting up build environment..."
+    if [ -f "${ISO_NAME}" ]; then
+        rm "${ISO_NAME}"
+    fi
+    
+    sudo apt-get update >/dev/null 2>&1
+    sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \
+        isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+        mtools dosfstools wget unzip >/dev/null 2>&1
+}
+
 bootstrap_debian() {
     echo "Bootstrapping Debian..."
-    LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
     mkdir -p "${LIVE_BOOT_DIR}"
     sudo debootstrap --arch=amd64 --variant=minbase stable \
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
@@ -127,12 +147,51 @@ install_kernel_and_packages() {
         return $packages_exit_code
     fi
     
-    # External package installations
-    install_external_packages
 }
+
 
 install_external_packages() {
     echo "Installing GitHub packages..."
+
+    # Build Kismet first to surface build issues early (robust CI-safe logic)
+    echo "Building and installing Kismet from source inside chroot (early)..."
+    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
+set -e
+export DEBIAN_FRONTEND=noninteractive
+
+cd /tmp || exit 1
+rm -rf kismet
+
+# Clone with submodules (fallback ensures submodules initialized)
+git clone --depth 1 --recurse-submodules https://www.kismetwireless.net/git/kismet.git kismet || {
+  git clone --depth 1 https://www.kismetwireless.net/git/kismet.git kismet
+  (cd kismet && git submodule update --init --recursive) || true
+}
+
+cd kismet || { echo "kismet dir missing; skipping build" >&2; exit 0; }
+
+# Prefer upstream top-level build flow
+if [ -x ./configure ]; then
+  ./configure
+  make -j"$(nproc)"
+  make install
+  ldconfig
+  exit 0
+fi
+
+# Fallback to locating a CMakeLists.txt and building with CMake
+cmake_file="$(find . -maxdepth 6 -type f -name CMakeLists.txt -print -quit || true)"
+if [ -n "${cmake_file}" ]; then
+  src_dir="$(cd "$(dirname "${cmake_file}")" && pwd)"
+  mkdir -p build && cd build
+  cmake "${src_dir}"
+  make -j"$(nproc)"
+  make install
+  ldconfig
+else
+  echo "ERROR: No top-level configure or CMakeLists.txt found for Kismet; skipping build" >&2
+fi
+'
     
     # Installing Wifite2
     echo "Installing Wifite2..."
@@ -342,25 +401,9 @@ install_external_packages() {
         echo "✗ Failed to download Caido CLI"
     fi
 
-    # Build Kismet from source at end (moved here)
-    echo "Building and installing Kismet from source inside chroot..."
-    sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c '
-        set -e
-        export DEBIAN_FRONTEND=noninteractive
-
-        # Clone, build, and install Kismet (build deps provided via CUSTOM_PROGRAMS)
-        cd /tmp
-        git clone --depth 1 https://www.kismetwireless.net/git/kismet.git
-        cd kismet
-        mkdir -p build
-        cd build
-        cmake ..
-        make -j$(nproc)
-        make install
-        ldconfig
-    '
-
     echo "✓ External packages installed"
+
+    echo "✓ GitHub packages installation completed"
 }
 
 configure_system() {
@@ -508,8 +551,14 @@ create_iso() {
 }
     
 main() {
+    # Check and remove existing temporary directory if it exists
+    if [ -d "${LIVE_BOOT_DIR}" ]; then
+        sudo rm -rf "${LIVE_BOOT_DIR}"
+    fi
+    
     echo "Starting secOS build process..."
     
+    setup_build_env
     bootstrap_debian
     install_kernel_and_packages
     install_external_packages
