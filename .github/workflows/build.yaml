@@ -27,12 +27,122 @@ jobs:
           mtools dosfstools wget unzip git curl qemu-system-x86 qemu-utils ovmf
         curl https://rclone.org/install.sh | sudo bash
 
+    - name: Debug Package Availability
+      run: |
+        echo "=== DEBUGGING PACKAGE AVAILABILITY BEFORE BUILD ==="
+        
+        # Set up minimal chroot for package testing
+        sudo mkdir -p /tmp/debug_chroot
+        sudo debootstrap --arch=amd64 --variant=minbase stable /tmp/debug_chroot http://ftp.us.debian.org/debian/
+        
+        # Configure repositories
+        sudo chroot /tmp/debug_chroot /bin/bash -c "sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list"
+        sudo chroot /tmp/debug_chroot /bin/bash -c "apt-get update"
+        
+        # Check which packages are NOT available
+        echo "=== UNAVAILABLE PACKAGES ==="
+        PACKAGES=(
+            openssh-server firefox-esr kitty spotify-client vim nmap hashcat hydra 
+            netcat-openbsd lightdm awesome compton rofi proxychains kismet calamares
+            sudo git golang-go python3 python3-pip pipx python3-setuptools unzip 
+            pciutils wget tar dpkg locales tzdata curl gpg network-manager net-tools 
+            network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng 
+            iputils-ping iproute2 firmware-linux-nonfree firmware-iwlwifi xorg 
+            xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all 
+            alsa-utils playerctl gobject-introspection liblightdm-gobject-1-0 
+            liblightdm-gobject-dev libgirepository1.0-dev libcairo2 libcairo2-dev
+            libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev 
+            uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 
+            libkf5package5 libkf5parts5 libkpmcore12 libparted2 libpwquality1 
+            libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 
+            libqt5widgets5 libqt5xml5 libstdc++6 qml-module-qtquick2 
+            qml-module-qtquick-controls qml-module-qtquick-controls2 
+            qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
+            udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools 
+            grub-efi-amd64 tcpdump hostapd hcxdumptool bluez nemo
+        )
+        
+        FAILED_PACKAGES=()
+        for pkg in "${PACKAGES[@]}"; do
+            if ! sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache show $pkg" >/dev/null 2>&1; then
+                FAILED_PACKAGES+=("$pkg")
+                echo "✗ $pkg"
+            fi
+        done
+        
+        echo "=== SUMMARY ==="
+        echo "Total packages checked: ${#PACKAGES[@]}"
+        echo "Failed packages: ${#FAILED_PACKAGES[@]}"
+        
+        if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+            echo "=== FAILED PACKAGES LIST ==="
+            printf '%s\n' "${FAILED_PACKAGES[@]}"
+        fi
+        
+        # Show available compositor alternatives
+        echo "=== AVAILABLE COMPOSITORS ==="
+        sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache search compositor | head -10"
+        sudo chroot /tmp/debug_chroot /bin/bash -c "apt-cache search picom | head -5"
+        
+        # Clean up debug chroot
+        sudo rm -rf /tmp/debug_chroot
+
     - name: Build secOS
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
         chmod +x buildeb/buildeb.sh
         cd buildeb
         sudo ./buildeb.sh
+
+    - name: Debug Package Installation (if build fails)
+      if: failure()
+      run: |
+        echo "=== BUILD FAILED - Identifying unavailable packages ==="
+        
+        # Check which packages from our list are NOT available
+        echo "=== UNAVAILABLE PACKAGES ==="
+        PACKAGES=(
+            openssh-server firefox-esr kitty spotify-client vim nmap hashcat hydra 
+            netcat-openbsd lightdm awesome compton rofi proxychains kismet calamares
+            sudo git golang-go python3 python3-pip pipx python3-setuptools unzip 
+            pciutils wget tar dpkg locales tzdata curl gpg network-manager net-tools 
+            network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng 
+            iputils-ping iproute2 firmware-linux-nonfree firmware-iwlwifi xorg 
+            xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all 
+            alsa-utils playerctl gobject-introspection liblightdm-gobject-1-0 
+            liblightdm-gobject-dev libgirepository1.0-dev libcairo2 libcairo2-dev
+            libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev 
+            uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 
+            libkf5package5 libkf5parts5 libkpmcore12 libparted2 libpwquality1 
+            libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 
+            libqt5widgets5 libqt5xml5 libstdc++6 qml-module-qtquick2 
+            qml-module-qtquick-controls qml-module-qtquick-controls2 
+            qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
+            udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools 
+            grub-efi-amd64 tcpdump hostapd hcxdumptool bluez nemo
+        )
+        
+        FAILED_PACKAGES=()
+        for pkg in "${PACKAGES[@]}"; do
+            if ! sudo chroot buildeb/LIVE_BOOT/chroot /bin/bash -c "apt-cache show $pkg" >/dev/null 2>&1; then
+                FAILED_PACKAGES+=("$pkg")
+                echo "✗ $pkg"
+            fi
+        done
+        
+        echo "=== SUMMARY ==="
+        echo "Total packages checked: ${#PACKAGES[@]}"
+        echo "Failed packages: ${#FAILED_PACKAGES[@]}"
+        
+        if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+            echo "=== FAILED PACKAGES LIST ==="
+            printf '%s\n' "${FAILED_PACKAGES[@]}"
+        fi
+        
+        # Show available compositor alternatives
+        echo "=== AVAILABLE COMPOSITORS ==="
+        sudo chroot buildeb/LIVE_BOOT/chroot /bin/bash -c "apt-cache search compositor | head -10"
+        sudo chroot buildeb/LIVE_BOOT/chroot /bin/bash -c "apt-cache search picom | head -5"
 
     - name: Upload to Cloudflare R2
       env:
