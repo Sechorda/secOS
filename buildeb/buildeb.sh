@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e  # Exit immediately if a command exits with a non-zero status
 
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
@@ -15,7 +14,7 @@ CUSTOM_PROGRAMS=(
     openssh-server
     # Packages
     firefox-esr kitty spotify-client vim nmap hashcat hydra netcat-openbsd lightdm awesome compton rofi proxychains calamares
-    # Dependencies (including build/development packages required for building Kismet)
+    # Dependencies
     sudo git golang-go python3 python3-pip pipx python3-setuptools unzip pciutils wget tar dpkg locales tzdata curl gpg
     network-manager net-tools network-manager-gnome wpasupplicant wireless-tools dnsutils aircrack-ng iputils-ping iproute2
     firmware-linux-nonfree firmware-iwlwifi xorg xserver-xorg xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all alsa-utils playerctl
@@ -39,11 +38,11 @@ bootstrap_debian() {
     # Add Spotify repository (refresh package lists)
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         sed -i 's/main/main contrib non-free non-free-firmware/g' /etc/apt/sources.list
-        apt-get update
-        apt-get install -y curl gnupg
+        apt-get -qq update >/dev/null 2>&1
+        apt-get -qq --yes install curl gnupg >/dev/null 2>&1
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
         curl -fL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
-        apt-get update
+        apt-get -qq update >/dev/null 2>&1
     "
 }
 
@@ -53,13 +52,13 @@ install_kernel_and_packages() {
     # Install kernel
     echo "Installing Linux kernel..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "apt-get --yes install linux-image-amd64 live-boot systemd-sysv"
+        "apt-get -qq --yes install linux-image-amd64 live-boot systemd-sysv >/dev/null 2>&1"
     
     # Install all packages from CUSTOM_PROGRAMS array
     echo "Installing APT packages..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "apt-get --yes install ${CUSTOM_PROGRAMS[*]} && \
-        apt-get --yes --no-install-recommends install nemo"
+        "apt-get -qq --yes install ${CUSTOM_PROGRAMS[*]} >/dev/null 2>&1 && \
+        apt-get -qq --yes --no-install-recommends install nemo >/dev/null 2>&1"
 }
 
 install_external_packages() {
@@ -239,7 +238,7 @@ install_external_packages() {
     echo "Installing Obsidian..."
     sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        dpkg -i /tmp/obsidian.deb || apt-get install -f -y
+        dpkg -i /tmp/obsidian.deb || apt-get -qq -y install -f >/dev/null 2>&1
         ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian
         rm -f /tmp/obsidian.deb
     "
@@ -333,9 +332,9 @@ configure_system() {
     
     # Clean up unnecessary packages
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        apt-get autoremove -y
-        apt-get clean
-    "        
+        apt-get -qq -y autoremove >/dev/null 2>&1
+        apt-get -qq clean >/dev/null 2>&1
+    "
 }
 
 create_filesystem() {
