@@ -23,7 +23,7 @@ CUSTOM_PROGRAMS=(
     libxcb1-dev libx11-dev libnss3-tools libxft-dev libxrandr-dev libxpm-dev uthash-dev os-prober kpackagetool5 libkf5configcore5 libkf5coreaddons5 libkf5package5 libkf5parts5 
     libkpmcore12 libparted2 libpwquality1 libqt5dbus5 libqt5gui5 libqt5network5 libqt5qml5 libqt5quick5 libqt5svg5 libqt5widgets5 libqt5xml5 libstdc++6
     qml-module-qtquick2 qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 python3-yaml 
-    udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez nemo
+    udisks2 dosfstools e2fsprogs btrfs-progs xfsprogs squashfs-tools grub-efi-amd64 tcpdump hostapd hcxdumptool bluez
 )
 
 bootstrap_debian() {
@@ -34,7 +34,7 @@ bootstrap_debian() {
         "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
 
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd && export DEBIAN_FRONTEND=noninteractive"
+        "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd"
     
     # Add Spotify repository (refresh package lists)
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
@@ -53,15 +53,13 @@ install_kernel_and_packages() {
     # Install kernel
     echo "Installing Linux kernel..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" install linux-image-amd64 live-boot systemd-sysv"
+        "apt-get --yes install linux-image-amd64 live-boot systemd-sysv"
     
     # Install all packages from CUSTOM_PROGRAMS array
     echo "Installing APT packages..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
-        "export DEBIAN_FRONTEND=noninteractive && \
-        apt-get --yes -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" \
-        install ${CUSTOM_PROGRAMS[*]}"
+        "apt-get --yes install ${CUSTOM_PROGRAMS[*]} && \
+        apt-get --yes --no-install-recommends install nemo"
 }
 
 install_external_packages() {
@@ -309,7 +307,7 @@ configure_system() {
     done
 
     # Hide rofi entries
-    for app in nody-greeter lstopo picom systemsettings kdesystemsettings install-debian; do 
+    for app in nody-greeter lstopo picom compton rofi rofi-theme-selector systemsettings kdesystemsettings install-debian; do
         echo "NoDisplay=true" | sudo tee -a "${LIVE_BOOT_DIR}/chroot/usr/share/applications/${app}.desktop"
     done
 
