@@ -104,78 +104,18 @@ install_external_packages() {
     # Installing jsluice
     echo "Installing jsluice..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install github.com/BishopFox/jsluice/cmd/jsluice@latest >/dev/null 2>&1
-        set -e
-        NAME=jsluice
-        # Try common locations: GOBIN, GOPATH/bin, root go, user go, /usr/local/go/bin
-        GOBIN=\$(go env GOBIN 2>/dev/null || true)
-        GOPATH=\$(go env GOPATH 2>/dev/null || true)
-        if [ -n \"\${GOBIN}\" ] && [ -f \"\${GOBIN}/\$NAME\" ]; then
-            SRC=\"\${GOBIN}/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -n \"\${GOPATH}\" ] && [ -f \"\${GOPATH}/bin/\$NAME\" ]; then
-            SRC=\"\${GOPATH}/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/root/go/bin/\$NAME\" ]; then
-            SRC=\"/root/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/home/${USERNAME}/go/bin/\$NAME\" ]; then
-            SRC=\"/home/${USERNAME}/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/usr/local/go/bin/\$NAME\" ]; then
-            SRC=\"/usr/local/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        else
-            echo \"Warning: \$NAME not found after install\" >&2
-        fi
-        if [ -f /usr/local/bin/.\$NAME ]; then
-            ln -sf /usr/local/bin/.\$NAME /usr/local/bin/\$NAME
-            chmod +x /usr/local/bin/.\$NAME
-        fi
-        rm -rf /root/go /home/${USERNAME}/go || true
+        go install github.com/BishopFox/jsluice/cmd/jsluice@latest
+        mv /root/go/bin/jsluice /usr/local/bin/.jsluice
+        ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice
+        rm -rf /root/go
     "
 
     # Installing shortscan
     echo "Installing shortscan..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install github.com/bitquark/shortscan/cmd/shortscan@latest >/dev/null 2>&1
-        set -e
-        NAME=shortscan
-        GOBIN=\$(go env GOBIN 2>/dev/null || true)
-        GOPATH=\$(go env GOPATH 2>/dev/null || true)
-        if [ -n \"\${GOBIN}\" ] && [ -f \"\${GOBIN}/\$NAME\" ]; then
-            SRC=\"\${GOBIN}/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -n \"\${GOPATH}\" ] && [ -f \"\${GOPATH}/bin/\$NAME\" ]; then
-            SRC=\"\${GOPATH}/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/root/go/bin/\$NAME\" ]; then
-            SRC=\"/root/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/home/${USERNAME}/go/bin/\$NAME\" ]; then
-            SRC=\"/home/${USERNAME}/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        elif [ -f \"/usr/local/go/bin/\$NAME\" ]; then
-            SRC=\"/usr/local/go/bin/\$NAME\"
-            mv \"\$SRC\" /usr/local/bin/.\$NAME
-            echo \"Moved \$NAME from \$SRC to /usr/local/bin/.\$NAME\"
-        else
-            echo \"Warning: \$NAME not found after install\" >&2
-        fi
-        if [ -f /usr/local/bin/.\$NAME ]; then
-            ln -sf /usr/local/bin/.\$NAME /usr/local/bin/\$NAME
-            chmod +x /usr/local/bin/.\$NAME
-        fi
-        rm -rf /root/go /home/${USERNAME}/go || true
+        go install github.com/bitquark/shortscan/cmd/shortscan@latest
+        mv /root/go/bin/shortscan /usr/local/bin/shortscan
+        rm -rf /root/go
     "
 
     # Installing CloudBrute
