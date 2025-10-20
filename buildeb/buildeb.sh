@@ -47,7 +47,6 @@ bootstrap_debian() {
 }
 
 install_kernel_and_packages() {
-    echo "Installing kernel and packages..."
     
     # Install kernel
     echo "Installing Linux kernel..."
