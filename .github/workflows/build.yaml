@@ -19,7 +19,7 @@ jobs:
         fetch-depth: 0
         access-token: x-access-token:${{ secrets.ACTION_PAT }}
 
-    - name: Install Dependencies
+    - name: Setup build environment
       run: |
         sudo apt-get update
         sudo apt-get install -y apt-utils debootstrap squashfs-tools xorriso \

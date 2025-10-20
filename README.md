@@ -16,7 +16,7 @@
 <div align="center">
 
 # Summary
-[wiki / docs](https://github.com/Sechorda/secOS/wiki)<br>
+[Documentation](https://github.com/Sechorda/secOS/wiki)<br>
 ◦<br>
 [Download secOS](https://sec-os.com)<br>
 
