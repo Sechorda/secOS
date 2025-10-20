@@ -4,8 +4,8 @@ set -e  # Exit immediately if a command exits with a non-zero status
 # Constants
 DEBIAN_MIRROR="http://ftp.us.debian.org/debian/"
 NODY_GREETER_URL="https://github.com/JezerM/nody-greeter/releases/download/1.6.2/nody-greeter-1.6.2-debian.deb"
-OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.7.4/obsidian_1.7.4_amd64.deb"
-CAIDO_URL="https://caido.download/releases/v0.42.0/caido-cli-v0.42.0-linux-x86_64.tar.gz"
+OBSIDIAN_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.9.14/obsidian_1.9.14_amd64.deb"
+CAIDO_URL="https://caido.download/releases/v0.52.0/caido-cli-v0.52.0-linux-x86_64.tar.gz"
 
 ISO_NAME="secOS.iso"
 USERNAME="mist"
