@@ -30,7 +30,7 @@ bootstrap_debian() {
     LIVE_BOOT_DIR="${PWD}/LIVE_BOOT"
     mkdir -p "${LIVE_BOOT_DIR}"
     sudo debootstrap --arch=amd64 --variant=minbase stable \
-        "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}"
+        "${LIVE_BOOT_DIR}/chroot" "${DEBIAN_MIRROR}" >/dev/null 2>&1
 
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c \
         "useradd -m -s /bin/bash ${USERNAME} && echo '${USERNAME}:live' | chpasswd && usermod -aG sudo ${USERNAME} && echo 'root:live' | chpasswd"
@@ -41,7 +41,7 @@ bootstrap_debian() {
         apt-get -qq update >/dev/null 2>&1
         apt-get -qq --yes install curl gnupg >/dev/null 2>&1
         echo 'deb http://repository.spotify.com stable non-free' > /etc/apt/sources.list.d/spotify.list
-        curl -fL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg
+        curl -fsSL https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/spotify.gpg >/dev/null 2>&1
         apt-get -qq update >/dev/null 2>&1
     "
 }
@@ -67,7 +67,7 @@ install_external_packages() {
     # Installing Wifite2
     echo "Installing Wifite2..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2
+        git clone --quiet https://github.com/derv82/wifite2.git /usr/local/bin/.wifite2 >/dev/null 2>&1
         ln -sf /usr/local/bin/.wifite2/Wifite.py /usr/local/bin/wifite
         ln -sf /usr/bin/python3 /usr/bin/python
     "
@@ -75,7 +75,7 @@ install_external_packages() {
     # Installing ffuf
     echo "Installing ffuf..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz
+        wget -q https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz -O /tmp/ffuf.tar.gz >/dev/null 2>&1
         mkdir -p /usr/local/bin/.ffuf
         tar -xf /tmp/ffuf.tar.gz -C /usr/local/bin/.ffuf ffuf
         ln -sf /usr/local/bin/.ffuf/ffuf /usr/local/bin/ffuf
@@ -85,8 +85,8 @@ install_external_packages() {
     # Installing gospider
     echo "Installing gospider..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip
-        unzip /tmp/gospider.zip -d /tmp/gospider
+        wget -q https://github.com/jaeles-project/gospider/releases/download/v1.1.6/gospider_v1.1.6_linux_x86_64.zip -O /tmp/gospider.zip >/dev/null 2>&1
+        unzip -q /tmp/gospider.zip -d /tmp/gospider >/dev/null 2>&1
         mv /tmp/gospider/gospider_v1.1.6_linux_x86_64/gospider /usr/local/bin/gospider
         chmod +x /usr/local/bin/gospider
         rm -rf /tmp/gospider /tmp/gospider.zip
@@ -95,9 +95,9 @@ install_external_packages() {
     # Installing dnsReaper
     echo "Installing dnsReaper..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper
+        git clone --quiet https://github.com/punk-security/dnsReaper.git /usr/local/bin/.dnsReaper >/dev/null 2>&1
         cd /usr/local/bin/.dnsReaper
-        pip install -r requirements.txt --break-system-packages
+        pip install -q -r requirements.txt --break-system-packages >/dev/null 2>&1
         chmod +x main.py
         ln -sf /usr/local/bin/.dnsReaper/main.py /usr/local/bin/dnsreaper
     "
@@ -105,7 +105,7 @@ install_external_packages() {
     # Installing jsluice
     echo "Installing jsluice..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/BishopFox/jsluice/cmd/jsluice@latest
+        go install github.com/BishopFox/jsluice/cmd/jsluice@latest >/dev/null 2>&1
         mv /root/go/bin/jsluice /usr/local/bin/.jsluice
         ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice
         rm -rf /root/go
@@ -114,7 +114,7 @@ install_external_packages() {
     # Installing shortscan
     echo "Installing shortscan..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install -v github.com/bitquark/shortscan/cmd/shortscan@latest
+        go install github.com/bitquark/shortscan/cmd/shortscan@latest >/dev/null 2>&1
         mv /root/go/bin/shortscan /usr/local/bin/shortscan
         rm -rf /root/go
     "
@@ -122,7 +122,7 @@ install_external_packages() {
     # Installing CloudBrute
     echo "Installing CloudBrute..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        wget https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz
+        wget -q https://github.com/0xsha/CloudBrute/releases/download/v1.0.7/cloudbrute_1.0.7_Linux_x86_64.tar.gz -O /tmp/cloudbrute.tar.gz >/dev/null 2>&1
         mkdir -p /usr/local/bin/.cloudbrute
         tar -xf /tmp/cloudbrute.tar.gz -C /usr/local/bin/.cloudbrute
         ln -sf /usr/local/bin/.cloudbrute/cloudbrute /usr/local/bin/cloudbrute
@@ -132,7 +132,7 @@ install_external_packages() {
     # Installing wafw00f and Arjun via pip
     echo "Installing wafw00f and Arjun..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - ${USERNAME} -c 'pip install wafw00f arjun --user --break-system-packages'
+        su - ${USERNAME} -c 'pip install -q wafw00f arjun --user --break-system-packages >/dev/null 2>&1'
         ln -sf /home/${USERNAME}/.local/bin/wafw00f /usr/local/bin/wafw00f
         ln -sf /home/${USERNAME}/.local/bin/arjun /usr/local/bin/arjun
         chmod +x /usr/local/bin/wafw00f /usr/local/bin/arjun
@@ -141,9 +141,9 @@ install_external_packages() {
     # Installing Corsy
     echo "Installing Corsy..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy
+        git clone --quiet https://github.com/s0md3v/Corsy.git /usr/local/bin/.corsy >/dev/null 2>&1
         cd /usr/local/bin/.corsy
-        pip install -r requirements.txt --break-system-packages
+        pip install -q -r requirements.txt --break-system-packages >/dev/null 2>&1
         echo '#!/bin/bash' > /usr/local/bin/corsy
         echo 'python3 /usr/local/bin/.corsy/corsy.py \"\$@\"' >> /usr/local/bin/corsy
         chmod +x /usr/local/bin/corsy
@@ -152,16 +152,16 @@ install_external_packages() {
     # Installing FireProx and AWS CLI
     echo "Installing FireProx and AWS CLI..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/ustayready/fireprox /usr/local/bin/.fireprox
+        git clone --quiet https://github.com/ustayready/fireprox /usr/local/bin/.fireprox >/dev/null 2>&1
         cd /usr/local/bin/.fireprox
-        pip3 install -r requirements.txt --break-system-packages
+        pip3 install -q -r requirements.txt --break-system-packages >/dev/null 2>&1
         echo '#!/bin/bash' > /usr/local/bin/fireprox
         echo 'python3 /usr/local/bin/.fireprox/fire.py \"\$@\"' >> /usr/local/bin/fireprox
         chmod +x /usr/local/bin/fireprox
         
-        curl -fL 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip'
-        unzip awscliv2.zip
-        ./aws/install
+        curl -fsSL 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' >/dev/null 2>&1
+        unzip -q awscliv2.zip >/dev/null 2>&1
+        ./aws/install >/dev/null 2>&1
         rm -rf aws awscliv2.zip
     "
     
@@ -187,7 +187,7 @@ install_external_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod +x /usr/local/bin/infra.py
         ln -sf /usr/local/bin/infra.py /usr/local/bin/infra
-        pip3 install cloudflare python-dotenv boto3 questionary botocore --break-system-packages
+        pip3 install -q cloudflare python-dotenv boto3 questionary botocore --break-system-packages >/dev/null 2>&1
     "
 
     # osint
@@ -195,19 +195,19 @@ install_external_packages() {
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         chmod +x /usr/local/bin/osint.py
         ln -sf /usr/local/bin/osint.py /usr/local/bin/osint
-        pip3 install requests beautifulsoup4 cloudscraper --break-system-packages
+        pip3 install -q requests beautifulsoup4 cloudscraper --break-system-packages >/dev/null 2>&1
     "
 
     # bbot
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        su - mist -c 'pipx install bbot'
+        su - mist -c 'pipx install bbot >/dev/null 2>&1'
     "
 
     # Spiderfoot
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        git clone https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot
+        git clone --quiet https://github.com/smicallef/spiderfoot.git /usr/local/bin/.spiderfoot >/dev/null 2>&1
         cd /usr/local/bin/.spiderfoot
-        pip3 install -r requirements.txt --break-system-packages
+        pip3 install -q -r requirements.txt --break-system-packages >/dev/null 2>&1
         echo '#!/bin/bash' > /usr/local/bin/spiderfoot
         echo 'python3 /usr/local/bin/.spiderfoot/sf.py \"\$@\"' >> /usr/local/bin/spiderfoot
         chmod +x /usr/local/bin/spiderfoot
@@ -217,7 +217,7 @@ install_external_packages() {
     sudo cp -r "${PWD}/../RF-Lockpick" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/RF-Lockpick"
     sudo cp "${PWD}/config/system/rf_wrapper.sh" "${LIVE_BOOT_DIR}/chroot/usr/local/bin/rf"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        pip3 install flask flask-cors flask-socketio python-dotenv requests --break-system-packages
+        pip3 install -q flask flask-cors flask-socketio python-dotenv requests --break-system-packages >/dev/null 2>&1
         chmod +x /usr/local/bin/rf
     "
 
@@ -228,7 +228,7 @@ install_external_packages() {
     
     # Nody-Greeter install
     echo "Installing Nody-Greeter..."
-    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL"
+    sudo wget -q --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/nody-greeter.deb" "$NODY_GREETER_URL" >/dev/null 2>&1
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         dpkg -i /tmp/nody-greeter.deb || true
         rm -f /tmp/nody-greeter.deb
@@ -236,7 +236,7 @@ install_external_packages() {
 
     # Obsidian install
     echo "Installing Obsidian..."
-    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL"
+    sudo wget -q --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/obsidian.deb" "$OBSIDIAN_URL" >/dev/null 2>&1
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         dpkg -i /tmp/obsidian.deb || apt-get -qq -y install -f >/dev/null 2>&1
         ln -sf /opt/Obsidian/obsidian /usr/local/bin/obsidian
@@ -245,7 +245,7 @@ install_external_packages() {
 
     # Caido CLI install
     echo "Installing Caido CLI..."
-    sudo wget --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL"
+    sudo wget -q --timeout=30 -O "${LIVE_BOOT_DIR}/chroot/tmp/caido-cli.tar.gz" "$CAIDO_URL" >/dev/null 2>&1
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
         cd /tmp &&
         tar -xzf caido-cli.tar.gz &&
@@ -276,7 +276,7 @@ configure_system() {
     echo "${LIGHTDM_CONF}" | sudo tee -a "${LIVE_BOOT_DIR}/chroot/etc/lightdm/lightdm.conf"
     sudo sed -i 's/^#greeter-session=.*/greeter-session=nody-greeter/g' "${LIVE_BOOT_DIR}/chroot/etc/lightdm/lightdm.conf"
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        sed -i 's/^[[:space:]]*theme:[[:space:]]*.*$/    theme: sechorda/' /etc/lightdm/web-greeter.yml
+        su - mist -c 'pipx install bbot >/dev/null 2>&1'
     "
 
     # Set GTK theme
@@ -316,8 +316,8 @@ configure_system() {
 
     # Set correct ownership and permissions
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config /home/${USERNAME}/secos-vault
-        $(printf '%s\n' "${PERMISSIONS[@]}")
+        pip3 install -q flask flask-cors flask-socketio python-dotenv requests --break-system-packages >/dev/null 2>&1
+        chmod +x /usr/local/bin/rf
     "
 
     # Configure and generate locales
