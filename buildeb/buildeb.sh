@@ -104,18 +104,30 @@ install_external_packages() {
     # Installing jsluice
     echo "Installing jsluice..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install github.com/BishopFox/jsluice/cmd/jsluice@latest
-        mv /root/go/bin/jsluice /usr/local/bin/.jsluice
+        # Ensure /proc is available inside chroot for Go runtime and set GOROOT/GOPATH
+        mount -t proc proc /proc || true
+        export GOROOT=/usr/lib/go
+        export GOPATH=/root/go
+        export PATH=\$PATH:\$GOROOT/bin:\$GOPATH/bin
+        go install github.com/BishopFox/jsluice/cmd/jsluice@latest >/dev/null 2>&1 || true
+        mv /root/go/bin/jsluice /usr/local/bin/.jsluice || true
         ln -sf /usr/local/bin/.jsluice /usr/local/bin/jsluice
         rm -rf /root/go
+        umount /proc || true
     "
 
     # Installing shortscan
     echo "Installing shortscan..."
     sudo chroot "${LIVE_BOOT_DIR}/chroot" /bin/bash -c "
-        go install github.com/bitquark/shortscan/cmd/shortscan@latest
-        mv /root/go/bin/shortscan /usr/local/bin/shortscan
+        # Ensure /proc is available inside chroot for Go runtime and set GOROOT/GOPATH
+        mount -t proc proc /proc || true
+        export GOROOT=/usr/lib/go
+        export GOPATH=/root/go
+        export PATH=\$PATH:\$GOROOT/bin:\$GOPATH/bin
+        go install github.com/bitquark/shortscan/cmd/shortscan@latest >/dev/null 2>&1 || true
+        mv /root/go/bin/shortscan /usr/local/bin/shortscan || true
         rm -rf /root/go
+        umount /proc || true
     "
 
     # Installing CloudBrute
