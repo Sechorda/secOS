@@ -29,7 +29,7 @@ jobs:
 
 
 
-    - name: Build secOS (verbose)
+    - name: Build secOS
       run: |
         sudo mount -t proc proc /proc || echo "/proc already mounted"
         chmod +x buildeb/buildeb.sh
