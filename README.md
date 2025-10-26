@@ -25,19 +25,6 @@ secOS is a Debian-based Linux distribution for cybersecurity researchers. It com
 
 ---
 
-# Build secOS
-### `buildeb.sh`
-
-Build secOS yourself with the buildeb.sh bash script
-  <br>
-  Tested on debian12
-  </br>
-  Download prebuilt .ISO/.VMDK at https://sec-os.com
-  
-![buildeb](https://github.com/Sechorda/secOS/blob/gh-pages/images/buildeb.png)
-
----
-
 # RECON
 ### `recon.py`
 Features:<br>
